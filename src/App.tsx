@@ -144,6 +144,103 @@ interface UserInfo {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+const UserDropdown = () => {
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const checkAuth = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/me`, {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (res.data && res.data.id) {
+        setUser(res.data);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    checkAuth();
+    const interval = setInterval(checkAuth, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_URL}/auth/logout`, {}, { 
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      setUser(null);
+      setShowDropdown(false);
+      window.location.href = '/';
+    } catch (error) {
+      setUser(null);
+      setShowDropdown(false);
+      window.location.href = '/';
+    }
+  };
+
+  if (isLoading) {
+    return <div className="animate-pulse h-8 w-24 bg-gray-600 rounded"></div>;
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={() => setShowDropdown(!showDropdown)}
+        onMouseEnter={() => setShowDropdown(true)}
+        onMouseLeave={() => setShowDropdown(false)}
+        className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
+      >
+        <span>{user.name || user.email}</span>
+        <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {showDropdown && (
+        <div 
+          className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
+          onMouseEnter={() => setShowDropdown(true)}
+          onMouseLeave={() => setShowDropdown(false)}
+        >
+          <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
+            <div className="font-medium text-gray-900">{user.name || user.email}</div>
+            <div className="text-xs">
+              {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            Logout
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Navbar = () => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -512,6 +609,7 @@ const ProcessPage = () => {
               >
                 GitHub
               </a>
+              <UserDropdown />
             </div>
           </div>
         </div>
@@ -541,54 +639,42 @@ const ProcessPage = () => {
                     <FileUp className="w-8 h-8 text-blue-500" />
                   </div>
                 </div>
-
                 <div 
                   className={`w-full border-2 border-dashed rounded-xl p-8 mb-6 text-center
                     ${dragActive ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 hover:border-white/20'}
                     transition-all duration-200`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
+            <div className="relative">
+              <button 
+                onClick={() => setShowDropdown(!showDropdown)}
+                onMouseEnter={() => setShowDropdown(true)}
+                onMouseLeave={() => setShowDropdown(false)}
+                className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <span>{user.name || user.email}</span>
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              {showDropdown && (
+                <div 
+                  className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
+                  onMouseEnter={() => setShowDropdown(true)}
+                  onMouseLeave={() => setShowDropdown(false)}
                 >
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <label 
-                    htmlFor="file-upload"
-                    className="cursor-pointer"
-                  >
-                    <p className="text-gray-400">
-                      {file ? file.name : 'Drop your PDF here or click to browse'}
-                    </p>
-                  </label>
-                </div>
-
-                <button
-                  onClick={handleUpload}
-                  disabled={!file || uploading || processing}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 
-                    hover:to-blue-800 disabled:from-blue-800 disabled:to-blue-900 disabled:cursor-not-allowed 
-                    rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                  {uploading ? 'Uploading...' : processing ? 'Processing...' : (
-                    <>
-                      Process Tables
-                      <ArrowRight className="w-5 h-5" />
-                    </>
-                  )}
-                </button>
-
-                {error && (
-                  <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl w-full">
-                    <p className="text-red-400 text-sm">{error}</p>
+                  <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
+                    <div className="font-medium text-gray-900">{user.name || user.email}</div>
+                    <div className="text-xs">
+                      {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
+                    </div>
                   </div>
-                )}
-              </div>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 feature-grid-mobile">
