@@ -412,12 +412,13 @@ const ProcessPage = () => {
       formData.append('file', file);
 
       const uploadResponse = await axios.post('http://localhost:8000/upload', formData);
+      const uploadResponse = await axios.post(`${API_URL}/upload`, formData);
 
       setUploading(false);
       setProcessing(true);
 
       const processResponse = await axios.get<ProcessResponse>(
-        `http://localhost:8000/process/${file.name}?output_format=both`
+        `${API_URL}/process/${file.name}?output_format=both`
       );
 
       setResults(processResponse.data);
@@ -425,7 +426,7 @@ const ProcessPage = () => {
       for (let i = 0; i < processResponse.data.tables.length; i++) {
         const table = processResponse.data.tables[i];
         if (table.json_file) {
-          const jsonResponse = await axios.get(`http://localhost:8000/download/${table.json_file}`);
+          const jsonResponse = await axios.get(`${API_URL}/download/${table.json_file}`);
           setTableData(prev => ({
             ...prev,
             [i]: jsonResponse.data
@@ -442,7 +443,7 @@ const ProcessPage = () => {
 
   const handleDownload = async (filename: string) => {
     try {
-      const response = await axios.get(`http://localhost:8000/download/${filename}`, {
+      const response = await axios.get(`${API_URL}/download/${filename}`, {
         responseType: 'blob',
       });
 
@@ -475,7 +476,7 @@ const ProcessPage = () => {
     setLoadingQuestions(prev => ({ ...prev, [tableIndex]: true }));
 
     try {
-      const response = await axios.post('http://localhost:8000/ask', {
+      const response = await axios.post(`${API_URL}/ask`, {
         question: tableQuestion.question,
         table: Array.isArray(tableData[tableIndex]) 
           ? tableData[tableIndex] 
@@ -642,7 +643,7 @@ const ProcessPage = () => {
                 <h3 className="text-xl font-semibold mb-6 text-white">Table {index + 1}</h3>
                 <div className="space-y-6">
                   <img
-                    src={`http://localhost:8000/download/${table.image_file}`}
+                    src={`${API_URL}/download/${table.image_file}`}
                     alt={`Table ${index + 1}`}
                     className="w-full rounded-lg border border-white/10"
                   />
