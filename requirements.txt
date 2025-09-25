@@ -1,0 +1,3 @@
+poetry
+uvicorn==0.34.0
+
