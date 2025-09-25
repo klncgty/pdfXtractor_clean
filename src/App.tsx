@@ -152,7 +152,7 @@ const Navbar = () => {
   const checkAuth = async () => {
     try {
       console.log('🔄 Checking authentication...');
-      const res = await axios.get(`${API_URL}/auth/me`, { 
+      const res = await axios.get(`${API_URL}/auth/me`, {
         withCredentials: true,
         headers: {
           'Accept': 'application/json',
@@ -164,9 +164,9 @@ const Navbar = () => {
       
       console.log('✅ Auth response:', res.data);
       
-      if (res.data && res.data.authenticated && res.data.user) {
-        setUser(res.data.user);
-        console.log('✅ User authenticated:', res.data.user);
+      if (res.data && res.data.id) {
+        setUser(res.data);
+        console.log('✅ User authenticated:', res.data);
       } else {
         setUser(null);
         console.log('❌ User not authenticated');
@@ -224,54 +224,42 @@ const Navbar = () => {
           <span className="logo-gradient">pdfXtractor</span>
         </div>
         <div className="nav-links">
-          <a href="#features">Features</a>
           <a href="#llm">LLM</a>
           {isLoading ? (
             <div className="animate-pulse h-8 w-24 bg-gray-200 rounded"></div>
           ) : user ? (
-            <div className="flex items-center gap-4">
-              {/* Sayfa Sayısı Bilgisi */}
-              <div className="text-white/80 text-sm font-medium">
-                <span className="text-white">{user.pages_processed_this_month || 0}</span>
-                <span className="text-white/60">/{user.monthly_page_limit || 100}</span>
-                <span className="text-white/60 ml-1">pages</span>
-              </div>
-              
-              {/* Kullanıcı Dropdown */}
-              <div className="relative">
-                <button 
-                  onClick={() => setShowDropdown(!showDropdown)}
-                  className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
+            <div className="relative">
+              <button 
+                onClick={() => setShowDropdown(!showDropdown)}
+                onMouseEnter={() => setShowDropdown(true)}
+                onMouseLeave={() => setShowDropdown(false)}
+                className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <span>{user.name || user.email}</span>
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              {showDropdown && (
+                <div 
+                  className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
+                  onMouseEnter={() => setShowDropdown(true)}
+                  onMouseLeave={() => setShowDropdown(false)}
                 >
-                  <span>{user.name || user.email}</span>
-                  <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {showDropdown && (
-                  <>
-                    {/* Invisible overlay to close dropdown when clicking outside */}
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setShowDropdown(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
-                      <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
-                        <div className="font-medium text-gray-900">{user.name || user.email}</div>
-                        <div className="text-xs">
-                          {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
-                        </div>
-                      </div>
-                      <button
-                        onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Logout
-                      </button>
+                  <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
+                    <div className="font-medium text-gray-900">{user.name || user.email}</div>
+                    <div className="text-xs">
+                      {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
                     </div>
-                  </>
-                )}
-              </div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button
