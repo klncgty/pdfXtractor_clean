@@ -411,7 +411,6 @@ const ProcessPage = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const uploadResponse = await axios.post('http://localhost:8000/upload', formData);
       const uploadResponse = await axios.post(`${API_URL}/upload`, formData);
 
       setUploading(false);
