@@ -149,6 +149,17 @@ const UserDropdown = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Hover davranışı için Effect
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showDropdown && !(event.target as Element).closest('.user-dropdown')) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
+  
   const checkAuth = async () => {
     try {
       const res = await axios.get(`${API_URL}/auth/me`, {
@@ -205,11 +216,9 @@ const UserDropdown = () => {
   }
 
   return (
-    <div className="relative">
+    <div className="relative user-dropdown">
       <button 
         onClick={() => setShowDropdown(!showDropdown)}
-        onMouseEnter={() => setShowDropdown(true)}
-        onMouseLeave={() => setShowDropdown(false)}
         className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
       >
         <span>{user.name || user.email}</span>
@@ -220,8 +229,6 @@ const UserDropdown = () => {
       {showDropdown && (
         <div 
           className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
-          onMouseEnter={() => setShowDropdown(true)}
-          onMouseLeave={() => setShowDropdown(false)}
         >
           <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
             <div className="font-medium text-gray-900">{user.name || user.email}</div>
@@ -325,11 +332,10 @@ const Navbar = () => {
           {isLoading ? (
             <div className="animate-pulse h-8 w-24 bg-gray-200 rounded"></div>
           ) : user ? (
-            <div className="relative">
+            // Wrapper handles hover so moving between button and menu doesn't close it
+            <div className="relative" onMouseEnter={() => setShowDropdown(true)} onMouseLeave={() => setShowDropdown(false)}>
               <button 
                 onClick={() => setShowDropdown(!showDropdown)}
-                onMouseEnter={() => setShowDropdown(true)}
-                onMouseLeave={() => setShowDropdown(false)}
                 className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
               >
                 <span>{user.name || user.email}</span>
@@ -340,8 +346,6 @@ const Navbar = () => {
               {showDropdown && (
                 <div 
                   className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
-                  onMouseEnter={() => setShowDropdown(true)}
-                  onMouseLeave={() => setShowDropdown(false)}
                 >
                   <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
                     <div className="font-medium text-gray-900">{user.name || user.email}</div>
@@ -378,6 +382,24 @@ const Landing = () => {
   // Animasyon için state
   const [showLLM, setShowLLM] = React.useState(false);
   const llmRef = React.useRef<HTMLDivElement>(null);
+  const [isAuthenticated, setIsAuthenticated] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const checkAuth = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/auth/me`, { withCredentials: true });
+        if (!mounted) return;
+        setIsAuthenticated(Boolean(res.data && res.data.id));
+      } catch (err) {
+        if (!mounted) return;
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
+    return () => { mounted = false; };
+  }, []);
   
   const handleLogin = () => {
     window.location.href = `${API_URL}/auth/login`;
@@ -397,7 +419,7 @@ const Landing = () => {
   }, []);
 
   return (
-  <div className="main-bg min-h-screen w-screen flex flex-col bg-black relative" style={{ minHeight: '100vh', minWidth: '100vw' }}>
+    <div className="main-bg min-h-screen w-screen flex flex-col bg-black relative" style={{ minHeight: '100vh', minWidth: '100vw' }}>
       <VantaBirdsBackground />
       <Navbar />
       <main className="main-content flex-1 flex flex-col items-center justify-center w-full" style={{ minHeight: '100vh', paddingTop: 96, boxSizing: 'border-box' }}>
@@ -409,13 +431,18 @@ const Landing = () => {
             Extract your complex PDFs.
           </p>
           <div className="w-full flex justify-center items-center mt-9">
-            <button
-              className="start-free-btn mx-auto"
-              onClick={handleLogin}
-            >
-              START FOR FREE
-            </button>
-            
+            {isAuthenticated === true ? (
+              <Link to="/process">
+                <button className="start-free-btn mx-auto">Process PDF</button>
+              </Link>
+            ) : (
+              <button
+                className="start-free-btn mx-auto"
+                onClick={handleLogin}
+              >
+                START FOR FREE
+              </button>
+            )}
           </div>
         </section>
         {/* passing to llm bölümü */}
@@ -439,7 +466,6 @@ const Landing = () => {
         </section>
       </main>
     </div>
-// Ekstra: Parallax için window scroll event'i ile main-bg'e background-position hareketi eklenebilir.
   );
 };
 
@@ -450,6 +476,8 @@ const ProcessPage = () => {
   const [results, setResults] = useState<ProcessResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadInfo, setUploadInfo] = useState<{ pdf_id?: number; pages_total?: number; pages_processed?: number; limit_left?: number } | null>(null);
+  const [showUploadPopup, setShowUploadPopup] = useState(false);
   const [tableQuestions, setTableQuestions] = useState<{ [key: number]: TableQuestion }>({});
   const [tableData, setTableData] = useState<{ [key: number]: any }>({});
   const [loadingQuestions, setLoadingQuestions] = useState<{ [key: number]: boolean }>({});
@@ -496,13 +524,29 @@ const ProcessPage = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const uploadResponse = await axios.post(`${API_URL}/upload`, formData);
+      // Authenticated upload to endpoint that counts pages and reserves quota
+      const uploadResponse = await axios.post(`${API_URL}/upload_pdf`, formData, { withCredentials: true });
 
+      // Show popup with upload info
+      setUploadInfo(uploadResponse.data);
+      setShowUploadPopup(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
       setUploading(false);
-      setProcessing(true);
+    }
+  };
 
+  const handleStartProcessing = async () => {
+    if (!file || !uploadInfo) return;
+    setProcessing(true);
+    setShowUploadPopup(false);
+    try {
+      // pages_processed tells how many pages will be processed for this upload
+      const pagesToProcess = uploadInfo.pages_processed || 0;
       const processResponse = await axios.get<ProcessResponse>(
-        `${API_URL}/process/${file.name}?output_format=both`
+        `${API_URL}/process/${file.name}?output_format=both&pages_limit=${pagesToProcess}`,
+        { withCredentials: true }
       );
 
       setResults(processResponse.data);
@@ -517,9 +561,11 @@ const ProcessPage = () => {
           }));
         }
       }
+
+      // refresh user quota in dropdown by triggering a re-check; simple approach: reload page or refetch user
+      window.location.reload();
     } catch (err) {
-      setUploading(false);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'An error occurred during processing');
     } finally {
       setProcessing(false);
     }
@@ -584,6 +630,15 @@ const ProcessPage = () => {
 
   return (
     <div className="min-h-screen bg-black">
+      {/* Loading overlay shown during upload or processing */}
+      {(uploading || processing) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-t-transparent border-white rounded-full animate-spin" />
+            <div className="text-white">{uploading ? 'Uploading...' : 'Processing PDF...'}</div>
+          </div>
+        </div>
+      )}
       <nav className="border-b border-white/10 bg-black/20 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -643,39 +698,30 @@ const ProcessPage = () => {
                   className={`w-full border-2 border-dashed rounded-xl p-8 mb-6 text-center
                     ${dragActive ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 hover:border-white/20'}
                     transition-all duration-200`}
-            <div className="relative">
-              <button 
-                onClick={() => setShowDropdown(!showDropdown)}
-                onMouseEnter={() => setShowDropdown(true)}
-                onMouseLeave={() => setShowDropdown(false)}
-                className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                <span>{user.name || user.email}</span>
-                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              {showDropdown && (
-                <div 
-                  className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
-                  onMouseEnter={() => setShowDropdown(true)}
-                  onMouseLeave={() => setShowDropdown(false)}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
                 >
-                  <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
-                    <div className="font-medium text-gray-900">{user.name || user.email}</div>
-                    <div className="text-xs">
-                      {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept=".pdf"
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="cursor-pointer text-gray-400 hover:text-white transition-colors"
                   >
-                    Logout
-                  </button>
+                    <span className="block mb-2">
+                      {file ? file.name : 'Drop your PDF here or click to browse'}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {!file && 'Supports: PDF files'}
+                    </span>
+                  </label>
                 </div>
-              )}
-            </div>
 
             <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 feature-grid-mobile">
               {[
@@ -703,6 +749,39 @@ const ProcessPage = () => {
                   <p className="text-gray-400">{feature.description}</p>
                 </div>
               ))}
+            </div>
+            
+            {file && (
+              <button
+                onClick={handleUpload}
+                className="mt-6 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg 
+                  transition-colors duration-200 flex items-center gap-2"
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <Upload className="w-5 h-5 animate-spin" />
+                ) : (
+                  <ArrowRight className="w-5 h-5" />
+                )}
+                {uploading ? 'Uploading...' : 'Process PDF'}
+              </button>
+            )}
+            {showUploadPopup && uploadInfo && (
+              <div className="fixed inset-0 z-60 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/50" onClick={() => setShowUploadPopup(false)} />
+                <div className="relative bg-white rounded-lg p-6 w-full max-w-md z-70">
+                  <h3 className="text-lg font-semibold">Upload complete</h3>
+                  <p className="mt-2 text-sm text-gray-600">Pages in file: {uploadInfo.pages_total}</p>
+                  <p className="mt-1 text-sm text-gray-600">Pages reserved for processing: {uploadInfo.pages_processed}</p>
+                  <p className="mt-1 text-sm text-gray-600">Your remaining quota after this: {uploadInfo.limit_left}</p>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button onClick={() => setShowUploadPopup(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                    <button onClick={handleStartProcessing} className="px-4 py-2 bg-blue-600 text-white rounded">Process</button>
+                  </div>
+                </div>
+              </div>
+            )}
+              </div>
             </div>
           </div>
         ) : (
@@ -785,6 +864,8 @@ const ProcessPage = () => {
   );
 };
 
+// Interface tanımlamaları burada
+
 // Interfaces
 interface ProcessedTable {
   data_file?: string;
@@ -802,6 +883,8 @@ interface TableQuestion {
   question: string;
   answer: string | null;
 }
+
+
 
 // Main App Component
 function App() {

@@ -33,10 +33,15 @@ AsyncSessionLocal = sessionmaker(
     autoflush=False,
 )
 
-@asynccontextmanager
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency for getting async DB session"""
-    session = AsyncSessionLocal()
+    """Dependency for getting async DB session.
+
+    FastAPI expects dependency functions that are async generators (yield). Using
+    @asynccontextmanager returns a context manager object which FastAPI will
+    not automatically enter; that caused the `_AsyncGeneratorContextManager`
+    error. Implementing as an async generator yields the session directly.
+    """
+    session: AsyncSession = AsyncSessionLocal()
     try:
         logger.debug("Creating new database session")
         yield session

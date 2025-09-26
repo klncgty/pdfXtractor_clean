@@ -45,22 +45,26 @@ class PDFTableProcessor:
     def __init__(self, pdf_path):
         self.pdf_path = pdf_path
         self.config_hdr = config_hdr
-        self.tables, _ = self.ingest_pdf(pdf_path)
-        self.total_tables = len(self.tables)
+        # ingest_pdf now returns per-page tables and the document
+        self.per_page_tables, self.doc = self.ingest_pdf(pdf_path)
+        # total pages and total tables
+        self.total_pages = len(self.per_page_tables)
+        self.total_tables = sum(len(p) for p in self.per_page_tables)
 
-    def ingest_pdf(self, pdf_path) -> list:
+    def ingest_pdf(self, pdf_path):
         doc = PyPDFium2Document(pdf_path)
-        
-        tables = []
+
+        per_page = []
         for page in doc:
-            tables += detector.extract(page)
-            
-        
-        return tables, doc
+            # detector.extract returns a list of tables for the page
+            page_tables = detector.extract(page)
+            per_page.append(page_tables)
+
+        return per_page, doc
 
     def tablo_sayisi(self, input_path):
-        tables, doc = self.ingest_pdf(input_path)
-        return len(tables)
+        per_page, doc = self.ingest_pdf(input_path)
+        return sum(len(p) for p in per_page)
 
     def save_as_json(self,df, output_dir, table_index):
         """DataFrame'i JSON formatında kaydeder."""
@@ -80,19 +84,17 @@ class PDFTableProcessor:
         print(f"CSV dosyası {output_file} olarak kaydedildi.")
         return output_file
 
-    def process_single_table(self, table_index, output_format='json'):
+    def process_single_table(self, page_index, table_index_in_page, output_format='json'):
         """
-        Args:
-            table_index (int): İşlenecek tablonun indeksi.
-            output_format (str): 'json', 'csv' veya her ikisini de belirlemek için 'both'.
+        Process a single table identified by its page and index within the page.
         """
-        ft = formatter.extract(self.tables[table_index], margin='auto', padding=None)
+        table_obj = self.per_page_tables[page_index][table_index_in_page]
+        ft = formatter.extract(table_obj, margin='auto', padding=None)
         image = ft.visualize()
         output_dir = 'outputs'
         os.makedirs(output_dir, exist_ok=True)
-        image_output_path = os.path.join(output_dir, f'table_{table_index}.png')
+        image_output_path = os.path.join(output_dir, f'page_{page_index}_table_{table_index_in_page}.png')
         image.save(image_output_path)
-        print(f"Görsel dosyası {image_output_path} olarak kaydedildi.")
 
         df = ft.df(config_overrides=config_hdr).fillna("")
         df.columns = [
@@ -101,21 +103,28 @@ class PDFTableProcessor:
         ]
 
         if output_format == 'json':
-            json_file = self.save_as_json(df, output_dir, table_index)
+            json_file = self.save_as_json(df, output_dir, f'page_{page_index}_table_{table_index_in_page}')
             return json_file, image_output_path
         elif output_format == 'csv':
-            csv_file = self.save_as_csv(df, output_dir, table_index)
+            csv_file = self.save_as_csv(df, output_dir, f'page_{page_index}_table_{table_index_in_page}')
             return csv_file, image_output_path
         elif output_format == 'both':
-            json_file = self.save_as_json(df, output_dir, table_index)
-            csv_file = self.save_as_csv(df, output_dir, table_index)
+            json_file = self.save_as_json(df, output_dir, f'page_{page_index}_table_{table_index_in_page}')
+            csv_file = self.save_as_csv(df, output_dir, f'page_{page_index}_table_{table_index_in_page}')
             return json_file, csv_file, image_output_path
         else:
-            raise ValueError("Geçersiz output_format. 'json', 'csv' veya 'both' olmalı.")
+            raise ValueError("Invalid output_format. Should be 'json', 'csv' or 'both'.")
 
-    def process_tables(self, output_format):
-        for idx in range(self.total_tables):
-            yield self.process_single_table(idx, output_format)
+    def process_tables(self, output_format='json', pages_limit: int | None = None):
+        """
+        Iterate over tables page by page, honoring an optional pages_limit which limits how many pages to process.
+        Yields the same tuple shapes as before depending on output_format.
+        """
+        max_pages = self.total_pages if pages_limit is None else min(self.total_pages, pages_limit)
+        for page_idx in range(max_pages):
+            tables_on_page = self.per_page_tables[page_idx]
+            for tbl_idx in range(len(tables_on_page)):
+                yield self.process_single_table(page_idx, tbl_idx, output_format)
 
 
 if __name__ == "__main__":
