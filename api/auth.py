@@ -158,13 +158,13 @@ async def auth_callback(request: Request):
 async def get_me(request: Request):
     user_id = request.session.get('user_id')
     if not user_id:
-        return JSONResponse(status_code=401, content={"detail": "Kimlik doğrulanmadı"})
+        return JSONResponse(status_code=200, content=None)
     try:
         async with AsyncSessionLocal() as db_session:
             result = await db_session.execute(select(User).where(User.id == user_id))
             user = result.scalars().first()
             if not user:
-                return JSONResponse(status_code=401, content={"detail": "Kullanıcı bulunamadı"})
+                return JSONResponse(status_code=200, content=None)
             return {
                 "id": user.id,
                 "name": user.name,
