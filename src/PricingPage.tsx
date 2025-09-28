@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Check, Coffee } from 'lucide-react';
+import { Check, Coffee } from 'lucide-react';
 import axios from 'axios';
 import { UserDropdown } from './App';
+import octoLogo from './octo.png';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -59,8 +60,14 @@ const pricingTiers: PricingTier[] = [
 
 export const PricingPage = () => {
   const handleSubscribe = async (tier: PricingTier) => {
+    // Free tier için login sayfasına yönlendir
+    if (tier.price === 0) {
+      window.location.href = `${API_URL}/auth/login`;
+      return;
+    }
+    
     try {
-      // Redirect to Stripe checkout
+      // Paid tiers için Stripe checkout
       const response = await axios.post(`${API_URL}/create-subscription`, {
         priceId: tier.name.toLowerCase(),
       }, {
@@ -80,8 +87,8 @@ export const PricingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
-              <Sparkles className="w-8 h-8 text-blue-500" />
-              <span className="ml-2 text-xl font-bold text-white">pdfXtractor</span>
+              <img src={octoLogo} alt="Octro Logo" className="w-8 h-8" />
+              <span className="ml-2 text-xl font-bold text-white">OCTRO</span>
             </Link>
             <div className="flex items-center gap-6">
               <a
@@ -91,7 +98,7 @@ export const PricingPage = () => {
                 className="text-gray-300 hover:text-amber-400 transition-colors flex items-center gap-2"
               >
                 <Coffee className="w-5 h-5" />
-                <span>buy me cup of coffee :)</span>
+                <span>Support❤️</span>
               </a>
               <a
                 href="https://github.com/klncgty"

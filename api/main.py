@@ -97,7 +97,11 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # CORS middleware configuration
 allowed_origins = [
     "http://localhost:5173",
+    "http://localhost:5174", 
+    "http://localhost:5175",
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
     "http://127.0.0.1:8000",
     "http://localhost:8000"
 ]
@@ -414,6 +418,12 @@ async def ask_question(request: QuestionRequest):
 # Include routers
 app.include_router(auth_router, prefix="/auth")
 app.include_router(endpoints_router)
+
+# Include API router
+from api_endpoints import router as api_router
+app.include_router(api_router, prefix="/api")
+# Static routes temporarily disabled
+# Will be implemented later
 
 
 if __name__ == "__main__":

@@ -4,6 +4,10 @@ import { Upload, Download, Send, FileUp, Sparkles, ArrowRight, Coffee } from 'lu
 import axios from 'axios';
 import llmImage from './llm_formats.png';
 import octoLogo from './octo.png';
+import Overview from './Overview';
+import image1 from './1.jpeg';
+import image2 from './2.jpeg';
+import image3 from './3.jpeg';
 import './index.css';
 
 // Animated rolling CSV/JSON başlık bileşeni
@@ -288,6 +292,7 @@ export const UserDropdown = () => {
               {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
             </div>
           </div>
+
           <button
             onClick={handleLogout}
             className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -385,52 +390,87 @@ const Navbar = () => {
   return (
     <nav className="navbar-glass">
       <div className="navbar-content">
-        <div className="flex items-center gap-3">
-          <img src={octoLogo} alt="pdfXtractor Logo" className="w-9 h-9" />
-          <span className="logo-gradient">pdfXtractor</span>
-        </div>
+        <button 
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="flex items-center gap-3 bg-transparent border-none cursor-pointer"
+        >
+          <img src={octoLogo} alt="Octro Logo" className="w-9 h-9" />
+          <span className="logo-gradient">OCTRO</span>
+        </button>
         <div className="nav-links">
           {isLoading ? (
             <div className="animate-pulse h-8 w-24 bg-gray-200 rounded"></div>
           ) : user ? (
-            <div className="relative nav-dropdown">
+            <div className="flex items-center gap-2">
               <button 
-                onClick={() => setShowDropdown(!showDropdown)}
-                className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                onClick={() => {
+                  const overviewSection = document.querySelector('.overview-section');
+                  if (overviewSection) {
+                    overviewSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
               >
-                <span>{user.name || user.email}</span>
-                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                Overview
               </button>
-              {showDropdown && (
-                <div 
-                  className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
+              <Link to="/pricing" className="text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors">
+                Pricing
+              </Link>
+              <div className="relative nav-dropdown ml-2">
+                <button 
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
                 >
-                  <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
-                    <div className="font-medium text-gray-900">{user.name || user.email}</div>
-                    <div className="text-xs">
-                      {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  <span>{user.name || user.email}</span>
+                  <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {showDropdown && (
+                  <div 
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
                   >
-                    Logout
-                  </button>
-                </div>
-              )}
+                    <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
+                      <div className="font-medium text-gray-900">{user.name || user.email}</div>
+                      <div className="text-xs">
+                        {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
-            <button
-              className="cta-btn-border flex items-center gap-2"
-              onClick={handleLogin}
-              style={{ marginLeft: 16 }}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Loading...' : 'Get Started'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => {
+                  const overviewSection = document.querySelector('.overview-section');
+                  if (overviewSection) {
+                    overviewSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                Overview
+              </button>
+              <Link to="/pricing" className="text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors">
+                Pricing
+              </Link>
+              <button
+                className="text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors ml-2"
+                onClick={handleLogin}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Loading...' : 'Get Started'}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -443,7 +483,9 @@ const Landing = () => {
   const [showLLM, setShowLLM] = React.useState(false);
   const [showFirstContent] = React.useState(true);
   const llmRef = React.useRef<HTMLDivElement>(null);
+  const overviewRef = React.useRef<HTMLDivElement>(null);
   const [isAuthenticated, setIsAuthenticated] = React.useState<boolean | null>(null);
+  const [showDarkOverlay, setShowDarkOverlay] = React.useState(false);
 
   React.useEffect(() => {
     let mounted = true;
@@ -474,7 +516,23 @@ const Landing = () => {
           setShowLLM(true);
         }
       }
+
+      // Dark overlay için Overview section'ın pozisyonunu kontrol et
+      if (overviewRef.current) {
+        const overviewRect = overviewRef.current.getBoundingClientRect();
+        const overviewTitle = overviewRef.current.querySelector('h2');
+        if (overviewTitle) {
+          const titleRect = overviewTitle.getBoundingClientRect();
+          // Title'ın yarısı geçtikten sonra dark overlay göster (daha erken başlat)
+          if (titleRect.top < window.innerHeight * 0.3) {
+            setShowDarkOverlay(true);
+          } else {
+            setShowDarkOverlay(false);
+          }
+        }
+      }
     };
+    
     window.addEventListener('scroll', onScroll);
 
     return () => {
@@ -485,13 +543,22 @@ const Landing = () => {
   return (
     <div className="main-bg min-h-screen w-screen flex flex-col bg-black relative" style={{ minWidth: '100vw' }}>
       <VantaBirdsBackground />
+      
+      {/* Dark Overlay for Overview Section */}
+      <div 
+        className={`fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity duration-500 pointer-events-none ${
+          showDarkOverlay ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{ zIndex: 1 }}
+      />
+      
       <Navbar />
       <main className="main-content flex-1 flex flex-col items-center w-full" style={{ paddingTop: 96, paddingBottom: 64, boxSizing: 'border-box' }}>
-        <section className="hero-section relative overflow-hidden" style={{ marginBottom: 64, textAlign: 'center', zIndex: 2, width: '100%', maxWidth: 800 }}>
+        <section className="hero-section relative overflow-hidden" style={{ marginBottom: 16, textAlign: 'center', zIndex: 2, width: '100%', maxWidth: 800 }}>
           {/* Ana başlık - Sabit */}
           <div className="relative z-10">
             <h1 className="hero-title" style={{ fontSize: '2.7rem', color: '#fff', fontWeight: 800, marginBottom: 10, letterSpacing: 1.1, lineHeight: 1.15, fontFamily: "'Outfit', 'Space Grotesk', sans-serif" }}>
-              Transform your PDF documents into actionable data
+              Transform complex tables in your PDF documents into actionable data
             </h1>
             <p style={{ fontSize: '1.25rem', color: '#cbd5e1', fontWeight: 500, marginBottom: 0, letterSpacing: 0.2, lineHeight: 1.3 }}>
               Extract your complex PDFs with our advanced AI technology.
@@ -506,7 +573,7 @@ const Landing = () => {
                   className="start-free-btn mx-auto text-sm px-6 py-2.5"
                   onClick={handleLogin}
                 >
-                  START FOR FREE
+                  TRY FOR FREE
                 </button>
               )}
             </div>
@@ -522,7 +589,7 @@ const Landing = () => {
           {/* Oklar kaldırıldı */}
         </section>
         {/* passing to llm bölümü */}
-        <section id="llm" ref={llmRef} style={{ width: '100%', maxWidth: 700, margin: '80px auto 0 auto', zIndex: 2, background: 'none', textAlign: 'left' }}>
+        <section id="llm" ref={llmRef} style={{ width: '100%', maxWidth: 700, margin: '20px auto 0 auto', zIndex: 2, background: 'none', textAlign: 'left' }}>
           {/* Animasyonlu başlık */}
           <AnimatedLLMTitle />
           <div className="llm-blocks-container" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32, gap: 0, width: '100%' }}>
@@ -554,6 +621,482 @@ const Landing = () => {
           </div>
           <div style={{ textAlign: 'center', marginTop: 32 }}>
             <img src={llmImage} alt="llm format accuracy" style={{ width: '100%', maxWidth: 600, borderRadius: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.10)', opacity: showLLM ? 1 : 0, transition: 'opacity 0.7s' }} />
+          </div>
+        </section>
+
+        {/* Overview Section */}
+        <section ref={overviewRef} className="overview-section" style={{ width: '100%', marginTop: '50px', zIndex: 2 }}>
+          <div className="container mx-auto px-6 py-12">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold mb-4 text-white">
+                Data Extraction Overview
+              </h2>
+              <p className="text-white/80 text-lg">
+                Examples of PDF table extraction results from Octro
+              </p>
+            </div>
+
+            {/* Data Showcase */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start mb-12">
+              
+              {/* Example 1 */}
+              <div className="space-y-6">
+                <div className="text-center">
+                  <img 
+                    src={image1} 
+                    alt="PDF Table Example 1" 
+                    className="w-full max-w-md mx-auto rounded-lg shadow-lg"
+                  />
+                  <p className="text-white/60 mt-2">Original PDF Table</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">Extracted Data - Statistical Analysis</h3>
+                  <div className="bg-gray-900 rounded-lg p-3 overflow-x-auto max-h-64 overflow-y-auto">
+                    <pre className="text-xs text-green-400 whitespace-pre-wrap">
+                      <code>{`[
+  {
+    "Parameter": "aXo",
+    "All Farms": "(n 34) 4.582"
+  },
+  {
+    "Parameter": "",
+    "All Farms": "(0.548)"
+  },
+  {
+    "Parameter": "S ,\\"",
+    "All Farms": "-0.567 ~~~~~(0 .253)"
+  },
+  {
+    "Parameter": "81",
+    "All Farms": "~~~~~~1. 614* (0. 549)"
+  },
+  {
+    "Parameter": "32 ,,*",
+    "All Farms": "- 1. 359* (1.274)"
+  },
+  {
+    "Parameter": "63",
+    "All Farms": "-0. 588* (0.485)"
+  },
+  {
+    "Parameter": "6,,",
+    "All Farms": "0.296"
+  },
+  {
+    "Parameter": "",
+    "All Farms": "(0.715)"
+  },
+  {
+    "Parameter": "aj *",
+    "All Farms": "- 2.141** (1.200)"
+  },
+  {
+    "Parameter": "02",
+    "All Farms": "-0.588 (0.274) 1.797"
+  },
+  {
+    "Parameter": "X2",
+    "All Farms": "(0.233) 0.185 0.896"
+  }
+]`}</code>
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              {/* Example 2 */}
+              <div className="space-y-6">
+                <div className="text-center">
+                  <img 
+                    src={image2} 
+                    alt="PDF Table Example 2" 
+                    className="w-full max-w-md mx-auto rounded-lg shadow-lg"
+                  />
+                  <p className="text-white/60 mt-2">Original PDF Table</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">Extracted Data - Farm Comparison</h3>
+                  <div className="bg-gray-900 rounded-lg p-3 overflow-x-auto max-h-64 overflow-y-auto">
+                    <pre className="text-xs text-green-400 whitespace-pre-wrap">
+                      <code>{`[
+  {
+    "": "",
+    "Large": "Farms",
+    "Small": "Farms"
+  },
+  {
+    "": "Geometric Means",
+    "Large": "",
+    "Small": ""
+  },
+  {
+    "": "II (rupees)",
+    "Large": "2,184.62",
+    "Small": "493.90"
+  },
+  {
+    "": "K (rupees)",
+    "Large": "51.35",
+    "Small": "22.89"
+  },
+  {
+    "": "T (acres)",
+    "Large": "23.81",
+    "Small": "3.99"
+  },
+  {
+    "": "Rates of Return R!! (rupees per rupee) .9K",
+    "Large": "-25.02",
+    "Small": "-12.69"
+  },
+  {
+    "": "AT (rupees per acre)",
+    "Large": "164.88",
+    "Small": "222.44"
+  }
+]`}</code>
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Example 3 - Full Width */}
+            <div className="space-y-6 mb-12">
+              <div className="text-center">
+                <img 
+                  src={image3} 
+                  alt="PDF Table Example 3" 
+                  className="w-full max-w-2xl mx-auto rounded-lg shadow-lg"
+                />
+                <p className="text-white/60 mt-2">Original PDF Table</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-white mb-4">Extracted Data - Regional Statistics</h3>
+                <div className="bg-gray-900 rounded-lg p-3 overflow-x-auto max-h-64 overflow-y-auto">
+                  <pre className="text-xs text-green-400 whitespace-pre-wrap">
+                    <code>{`[
+  {
+    "State": "West Bengal",
+    "T": "12.15",
+    "K": "127.33",
+    "L": "402.41",
+    "wII": "1.54",
+    "": "923.28",
+    "V": "1,811.56"
+  },
+  {
+    "State": "West Bengal", 
+    "T": "16.96",
+    "K": "116.00",
+    "L": "628.37",
+    "wII": "1.61",
+    "": "772.36",
+    "V": "2,403.23"
+  },
+  {
+    "State": "West Bengal",
+    "T": ".64",
+    "K": "7.44",
+    "L": "39.05",
+    "wII": "1.60",
+    "": "187.78",
+    "V": "129.41"
+  },
+  {
+    "State": "West Bengal",
+    "T": "1.81",
+    "K": "14.84",
+    "L": "97.96",
+    "wII": "1.49",
+    "": "373.03",
+    "V": "352.59"
+  },
+  {
+    "State": "West Bengal",
+    "T": "3.11",
+    "K": "25.19",
+    "L": "173.10",
+    "wII": "1.59",
+    "": "555.87",
+    "V": "547.05"
+  },
+  {
+    "State": "West Bengal",
+    "T": "4.47",
+    "K": "33.30",
+    "L": "213.58",
+    "wII": "1.53",
+    "": "1,948.21",
+    "V": "809.07"
+  },
+  {
+    "State": "West Bengal",
+    "T": "6.18",
+    "K": "41.59",
+    "L": "321.42",
+    "wII": "1.45",
+    "": "813.20",
+    "V": "1,158.13"
+  },
+  {
+    "State": "West Bengal",
+    "T": "8.15",
+    "K": "37.89",
+    "L": "323.80",
+    "wII": "1.54",
+    "": "955.08",
+    "V": "1,401.80"
+  },
+  {
+    "State": "Madras",
+    "T": "11.81",
+    "K": "86.21",
+    "L": "336.58",
+    "wII": ".54",
+    "": "1,653.61",
+    "V": "907.01"
+  },
+  {
+    "State": "Madras",
+    "T": "17.35",
+    "K": "93.69",
+    "L": "395.58",
+    "wII": ".56",
+    "": "2,215.54",
+    "V": "1,174.59"
+  },
+  {
+    "State": "Madras",
+    "T": "22.97",
+    "K": "103.36",
+    "L": "560.41",
+    "wII": ".62",
+    "": "2,248.45",
+    "V": "1,683.70"
+  },
+  {
+    "State": "Madras",
+    "T": "43.78",
+    "K": "205.76",
+    "L": "897.49",
+    "wII": ".55",
+    "": "5,838.73",
+    "V": "3,607.47"
+  },
+  {
+    "State": "Madras",
+    "T": "1.61",
+    "K": "39.60",
+    "L": "179.35",
+    "wII": ".62",
+    "": "426.00",
+    "V": "354.04"
+  },
+  {
+    "State": "Madras",
+    "T": "3.66",
+    "K": "37.69",
+    "L": "229.85",
+    "wII": ".52",
+    "": "716.90",
+    "V": "751.03"
+  },
+  {
+    "State": "Madras",
+    "T": "6.02",
+    "K": "67.42",
+    "L": "276.92",
+    "wII": ".56",
+    "": "2,045.88",
+    "V": "947.55"
+  },
+  {
+    "State": "Madras",
+    "T": "8.83",
+    "K": "98.89",
+    "L": "342.60",
+    "wII": ".56",
+    "": "763.14",
+    "V": "1,190.28"
+  },
+  {
+    "State": "Madhya Pradesh",
+    "T": "12.44",
+    "K": "9.57",
+    "L": "294.70",
+    "wII": "1.08",
+    "": "1,709.28",
+    "V": "1,479.12"
+  },
+  {
+    "State": "Madhya Pradesh",
+    "T": "17.19",
+    "K": "11.86",
+    "L": "403.45",
+    "wII": "1.00",
+    "": "6,718.47",
+    "V": "1,693.21"
+  },
+  {
+    "State": "Madhya Pradesh",
+    "T": "24.25",
+    "K": "14.55",
+    "L": "470.21",
+    "wII": "1.11",
+    "": "40.53",
+    "V": "2,616.57"
+  },
+  {
+    "State": "Madhya Pradesh",
+    "T": "34.77",
+    "K": "31.64",
+    "L": "756.25",
+    "wII": "1.04",
+    "": "144.37",
+    "V": "3,689.10"
+  },
+  {
+    "State": "Madhya Pradesh",
+    "T": "45.17",
+    "K": "41.10",
+    "L": "1,084.08",
+    "wII": "1.11",
+    "": "157.86",
+    "V": "4,458.28"
+  },
+  {
+    "State": "Madhya Pradesh",
+    "T": "93.36",
+    "K": "82.15",
+    "L": "1,831.72",
+    "wII": "1.15",
+    "": "334.62",
+    "V": "10,017.53"
+  },
+  {
+    "State": "Madhya Pradesh",
+    "T": "2.95",
+    "K": "3.42",
+    "L": "101.13",
+    "wII": ".94",
+    "": "513.87",
+    "V": "422.73"
+  },
+  {
+    "State": "Madhya Pradesh",
+    "T": "7.38",
+    "K": "8.63",
+    "L": "190.40",
+    "wII": "1.06",
+    "": "729.34",
+    "V": "849.44"
+  },
+  {
+    "State": "Uttar Pradesh",
+    "T": "12.00",
+    "K": "78.00",
+    "L": "602.40",
+    "wII": "1.06",
+    "": "7.57",
+    "V": "2,448.00"
+  },
+  {
+    "State": "Uttar Pradesh",
+    "T": "16.90",
+    "K": "95.99",
+    "L": "765.57",
+    "wII": "1.06",
+    "": "320.98",
+    "V": "3,380.00"
+  },
+  {
+    "State": "Uttar Pradesh",
+    "T": "27.58",
+    "K": "148.93",
+    "L": "1,073.14",
+    "wII": "1.01",
+    "": "384.68",
+    "V": "5,653.90"
+  },
+  {
+    "State": "Uttar Pradesh",
+    "T": "3.33",
+    "K": "31.00",
+    "L": "209.16",
+    "wII": "1.01",
+    "": "411.48",
+    "V": "922.41"
+  },
+  {
+    "State": "Uttar Pradesh",
+    "T": "7.68",
+    "K": "64.97",
+    "L": "432.84",
+    "wII": ".98",
+    "": "227.80",
+    "V": "1,843.20"
+  },
+  {
+    "State": "Punjab",
+    "T": "14.50",
+    "K": "19.57",
+    "L": "450.22",
+    "wII": "1.51",
+    "": "448.19",
+    "V": "2,463.55"
+  },
+  {
+    "State": "Punjab",
+    "T": "28.45",
+    "K": "20.48",
+    "L": "701.86",
+    "wII": "1.38",
+    "": "124.41",
+    "V": "4,056.97"
+  },
+  {
+    "State": "Punjab",
+    "T": "81.19",
+    "K": "30.85",
+    "L": "1,484.96",
+    "wII": "1.92",
+    "": "391.14",
+    "V": "12,957.92"
+  },
+  {
+    "State": "Punjab",
+    "T": "3.98",
+    "K": "8.95",
+    "L": "158.96",
+    "wII": "1.33",
+    "": "129.43",
+    "V": "702.47"
+  }
+]`}</code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA Section */}
+            <div className="text-center">
+              <h3 className="text-2xl font-bold mb-4 text-white">
+                Extract Your Own PDF Tables
+              </h3>
+              <p className="text-white/80 mb-8 max-w-2xl mx-auto">
+                Transform complex tables in your PDF documents into structured data with our advanced extraction technology. 
+                Support for complex tables, multiple formats, and high accuracy.
+              </p>
+              <a 
+                href="/pricing" 
+                className="start-free-btn inline-flex items-center gap-2 text-sm px-8 py-3"
+              >
+                Try Octro Now
+                <ArrowRight className="w-5 h-5" />
+              </a>
+            </div>
           </div>
         </section>
       </main>
@@ -636,7 +1179,14 @@ const ProcessPage = () => {
         setUploadInfo(uploadResponse.data);
         setShowUploadPopup(true); // Show upload info popup
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred during upload');
+        console.error('Upload error:', err);
+        if (axios.isAxiosError(err)) {
+          // Backend'den gelen özel hata mesajı
+          const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message;
+          setError(errorMessage);
+        } else {
+          setError(err instanceof Error ? err.message : 'An error occurred during upload');
+        }
       } finally {
         setUploading(false);
       }
@@ -665,7 +1215,14 @@ const ProcessPage = () => {
       // Navigate to results page with data
       navigate('/results', { state: { results: processResponse.data, tableData: newTableData } });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during processing');
+      console.error('Processing error:', err);
+      if (axios.isAxiosError(err)) {
+        // Backend'den gelen özel hata mesajı
+        const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message;
+        setError(errorMessage);
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred during processing');
+      }
     } finally {
       setProcessing(false);
     }
@@ -686,8 +1243,8 @@ const ProcessPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
-              <Sparkles className="w-8 h-8 text-blue-500" />
-              <span className="ml-2 text-xl font-bold text-white">pdfXtractor</span>
+              <img src={octoLogo} alt="Octro Logo" className="w-8 h-8" />
+              <span className="ml-2 text-xl font-bold text-white">OCTRO</span>
             </Link>
             <div className="flex items-center gap-6">
               <a
@@ -697,7 +1254,7 @@ const ProcessPage = () => {
                 className="text-gray-300 hover:text-amber-400 transition-colors flex items-center gap-2"
               >
                 <Coffee className="w-5 h-5" />
-                <span>buy me cup of coffee :)</span>
+                <span>Support❤️</span>
               </a>
               <a
                 href="https://github.com/klncgty"
@@ -1026,8 +1583,8 @@ const ResultsPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
-              <Sparkles className="w-8 h-8 text-blue-500" />
-              <span className="ml-2 text-xl font-bold text-white">pdfXtractor</span>
+              <img src={octoLogo} alt="Octro Logo" className="w-8 h-8" />
+              <span className="ml-2 text-xl font-bold text-white">OCTRO</span>
             </Link>
             <div className="flex items-center gap-6">
               <a
@@ -1037,7 +1594,7 @@ const ResultsPage = () => {
                 className="text-gray-300 hover:text-amber-400 transition-colors flex items-center gap-2"
               >
                 <Coffee className="w-5 h-5" />
-                <span>buy me cup of coffee :)</span>
+                <span>Support❤️</span>
               </a>
               <a
                 href="https://github.com/klncgty"
@@ -1180,7 +1737,7 @@ import PricingPage from './PricingPage';
 
 // Legal Pages Components
 const Footer = () => (
-  <footer className="w-full py-8 text-center text-gray-400 text-sm border-t border-white/10 bg-black/30 backdrop-blur-sm mt-auto">
+  <footer className="w-full py-8 text-center text-gray-400 text-sm border-t border-white/10 bg-black/30 backdrop-blur-sm mt-auto relative z-10">
     <div className="max-w-7xl mx-auto px-4">
       <div className="flex justify-center items-center space-x-4">
         <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
@@ -1190,7 +1747,7 @@ const Footer = () => (
         <Link to="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link>
       </div>
       <div className="mt-4">
-        © {new Date().getFullYear()} pdfXtractor. All Rights Reserved.
+        © {new Date().getFullYear()} Octro. All Rights Reserved.
       </div>
     </div>
   </footer>
@@ -1202,20 +1759,20 @@ const TermsOfService = () => (
       <h1 className="text-3xl font-bold mb-8">Terms of Service</h1>
       <div className="space-y-6 text-gray-300">
         <h2 className="text-2xl font-semibold text-white">1. Terms</h2>
-        <p>By accessing the website at https://pdfxtractor.com, you are agreeing to be bound by these terms of service, all applicable laws and regulations, and agree that you are responsible for compliance with any applicable local laws.</p>
+        <p>By accessing the website at https://octro.com, you are agreeing to be bound by these terms of service, all applicable laws and regulations, and agree that you are responsible for compliance with any applicable local laws.</p>
         
         <h2 className="text-2xl font-semibold text-white">2. Use License</h2>
-        <p>Permission is granted to temporarily use the pdfXtractor service for personal or commercial use. This is the grant of a license, not a transfer of title, and under this license you may not:</p>
+        <p>Permission is granted to temporarily use the Octro service for personal or commercial use. This is the grant of a license, not a transfer of title, and under this license you may not:</p>
         <ul className="list-disc pl-6 space-y-2">
           <li>modify or copy the materials;</li>
           <li>use the materials for any commercial purpose, or for any public display (commercial or non-commercial) without explicit permission;</li>
-          <li>attempt to decompile or reverse engineer any software contained in pdfXtractor;</li>
+          <li>attempt to decompile or reverse engineer any software contained in Octro;</li>
           <li>remove any copyright or other proprietary notations from the materials;</li>
           <li>transfer the materials to another person or "mirror" the materials on any other server.</li>
         </ul>
 
         <h2 className="text-2xl font-semibold text-white">3. Disclaimer</h2>
-        <p>The materials on pdfXtractor's website are provided on an 'as is' basis. pdfXtractor makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties including, without limitation, implied warranties or conditions of merchantability, fitness for a particular purpose, or non-infringement of intellectual property or other violation of rights.</p>
+        <p>The materials on Octro's website are provided on an 'as is' basis. Octro makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties including, without limitation, implied warranties or conditions of merchantability, fitness for a particular purpose, or non-infringement of intellectual property or other violation of rights.</p>
       </div>
       <Link to="/" className="inline-block mt-8 text-blue-400 hover:text-blue-300">← Back to Home</Link>
     </div>
@@ -1227,7 +1784,7 @@ const PrivacyPolicy = () => (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Privacy Policy</h1>
       <div className="space-y-6 text-gray-300">
-        <p>At pdfXtractor, we take your privacy seriously. This Privacy Policy describes how we collect, use, and handle your information when you use our services.</p>
+        <p>At Octro, we take your privacy seriously. This Privacy Policy describes how we collect, use, and handle your information when you use our services.</p>
         
         <h2 className="text-2xl font-semibold text-white">Information Collection</h2>
         <p>We collect information that you provide directly to us:</p>
@@ -1260,7 +1817,7 @@ const CookiePolicy = () => (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Cookie Policy</h1>
       <div className="space-y-6 text-gray-300">
-        <p>This Cookie Policy explains how pdfXtractor uses cookies and similar technologies to recognize you when you visit our website.</p>
+        <p>This Cookie Policy explains how Octro uses cookies and similar technologies to recognize you when you visit our website.</p>
         
         <h2 className="text-2xl font-semibold text-white">What are cookies?</h2>
         <p>Cookies are small data files that are placed on your computer or mobile device when you visit a website. They are widely used by website owners to make their websites work, or to work more efficiently, as well as to provide reporting information.</p>
@@ -1291,6 +1848,7 @@ function App() {
         <Route path="/process" element={<ProcessPage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/pricing" element={<PricingPage />} />
+
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/cookies" element={<CookiePolicy />} />

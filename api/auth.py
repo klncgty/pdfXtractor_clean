@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, Header
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from database import get_db, AsyncSessionLocal
-from models import User
+from models import User, APIKey
 from sqlalchemy.future import select
+from sqlalchemy import and_
 import os
 import httpx
 from datetime import datetime as _dt
 from dotenv import load_dotenv
+from typing import Optional
 load_dotenv()
 
 def log_debug(msg: str, extra: dict | None = None):
@@ -181,3 +183,143 @@ async def logout(request: Request):
     print(f"Çıkış - Oturum öncesi: {dict(request.session)}")
     request.session.clear()
     return JSONResponse(content={"message": "Başarıyla çıkış yapıldı"})
+
+# API Key Authentication Functions
+async def verify_api_key(x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
+    """API key doğrulama fonksiyonu"""
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="API key gerekli")
+    
+    if not x_api_key.startswith("pdfx_"):
+        raise HTTPException(status_code=401, detail="Geçersiz API key formatı")
+    
+    try:
+        async with AsyncSessionLocal() as db_session:
+            result = await db_session.execute(
+                select(APIKey, User).join(User).where(
+                    and_(
+                        APIKey.api_key == x_api_key,
+                        APIKey.is_active == True
+                    )
+                )
+            )
+            api_key_user = result.first()
+            
+            if not api_key_user:
+                raise HTTPException(status_code=401, detail="Geçersiz API key")
+            
+            api_key, user = api_key_user
+            
+            # Usage tracking
+            api_key.last_used = _dt.utcnow()
+            api_key.requests_made_this_month += 1
+            await db_session.commit()
+            
+            # Rate limiting
+            if api_key.requests_made_this_month > api_key.monthly_request_limit:
+                raise HTTPException(status_code=429, detail="API kullanım limiti aşıldı")
+            
+            return {"api_key": api_key, "user": user}
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"API key doğrulama hatası: {e}")
+        raise HTTPException(status_code=500, detail="Sunucu hatası")
+
+# API Key Management Endpoints
+@router.post('/api-keys')
+async def create_api_key(request: Request, name: str):
+    """Yeni API key oluştur"""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Oturum gerekli")
+    
+    try:
+        async with AsyncSessionLocal() as db_session:
+            # Check user exists
+            result = await db_session.execute(select(User).where(User.id == user_id))
+            user = result.scalars().first()
+            if not user:
+                raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+            
+            # Create new API key
+            api_key = APIKey(
+                user_id=user_id,
+                api_key=APIKey.generate_api_key(),
+                name=name,
+                monthly_request_limit=1000  # Default limit
+            )
+            
+            db_session.add(api_key)
+            await db_session.commit()
+            await db_session.refresh(api_key)
+            
+            return {
+                "id": api_key.id,
+                "api_key": api_key.api_key,
+                "name": api_key.name,
+                "created_at": api_key.created_at,
+                "monthly_request_limit": api_key.monthly_request_limit
+            }
+            
+    except Exception as e:
+        print(f"API key oluşturma hatası: {e}")
+        raise HTTPException(status_code=500, detail="Sunucu hatası")
+
+@router.get('/api-keys')
+async def get_api_keys(request: Request):
+    """Kullanıcının API keylerini listele"""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Oturum gerekli")
+    
+    try:
+        async with AsyncSessionLocal() as db_session:
+            result = await db_session.execute(
+                select(APIKey).where(APIKey.user_id == user_id)
+            )
+            api_keys = result.scalars().all()
+            
+            return [{
+                "id": key.id,
+                "name": key.name,
+                "api_key": key.api_key[:12] + "..." + key.api_key[-4:],  # Masked
+                "is_active": key.is_active,
+                "created_at": key.created_at,
+                "last_used": key.last_used,
+                "requests_made_this_month": key.requests_made_this_month,
+                "monthly_request_limit": key.monthly_request_limit
+            } for key in api_keys]
+            
+    except Exception as e:
+        print(f"API key listeleme hatası: {e}")
+        raise HTTPException(status_code=500, detail="Sunucu hatası")
+
+@router.delete('/api-keys/{key_id}')
+async def delete_api_key(key_id: int, request: Request):
+    """API key'i sil"""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Oturum gerekli")
+    
+    try:
+        async with AsyncSessionLocal() as db_session:
+            result = await db_session.execute(
+                select(APIKey).where(
+                    and_(APIKey.id == key_id, APIKey.user_id == user_id)
+                )
+            )
+            api_key = result.scalars().first()
+            
+            if not api_key:
+                raise HTTPException(status_code=404, detail="API key bulunamadı")
+            
+            await db_session.delete(api_key)
+            await db_session.commit()
+            
+            return {"message": "API key başarıyla silindi"}
+            
+    except Exception as e:
+        print(f"API key silme hatası: {e}")
+        raise HTTPException(status_code=500, detail="Sunucu hatası")

@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get database URL from environment or use SQLite as default
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///./pdfxtractor.db')
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///./octro.db')
 
 # Configure async engine for SQLite
 engine = create_async_engine(

@@ -38,7 +38,7 @@ Automatically extract complex tables from your PDF documents and convert them in
 
 Run the following command in your terminal or command prompt to clone the repository to your local machine:
 ```bash
-git clone https://github.com/klncgty/pdfXtractor.git
+git clone https://github.com/klncgty/octro.git
 ```
 
 ### 2️⃣ Install Python Dependencies
@@ -117,7 +117,7 @@ If you encounter any issues, please report them via GitHub Issues.
 
 ## License and Usage
 
-PDFXtractor is for **personal use only**. It **cannot** be used for commercial purposes, redistributed, or offered as a service to others.
+Octro is for **personal use only**. It **cannot** be used for commercial purposes, redistributed, or offered as a service to others.
 
 Licensed under the Creative Commons BY-NC 4.0 License.  
 More info: [https://creativecommons.org/licenses/by-nc/4.0/](https://creativecommons.org/licenses/by-nc/4.0/)
