@@ -67,17 +67,24 @@ export const PricingPage = () => {
     }
     
     try {
-      // Paid tiers için Stripe checkout
-      const response = await axios.post(`${API_URL}/create-subscription`, {
-        priceId: tier.name.toLowerCase(),
+      // Paid tiers için Stripe checkout - plan_type olarak gönder
+      const response = await axios.post(`${API_URL}/stripe/create-checkout-session`, {
+        plan_type: tier.name.toLowerCase(),
       }, {
         withCredentials: true
       });
       
       // Redirect to Stripe checkout page
-      window.location.href = response.data.url;
+      window.location.href = response.data.checkout_url;
     } catch (error) {
       console.error('Subscription error:', error);
+      // Hata durumunda kullanıcıya bilgi ver
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        // Kullanıcı giriş yapmamış, login sayfasına yönlendir
+        window.location.href = `${API_URL}/auth/login`;
+      } else {
+        alert('Ödeme işlemi başlatılamadı. Lütfen tekrar deneyin.');
+      }
     }
   };
 

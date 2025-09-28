@@ -422,6 +422,11 @@ app.include_router(endpoints_router)
 # Include API router
 from api_endpoints import router as api_router
 app.include_router(api_router, prefix="/api")
+
+# Include Stripe router
+from stripe_endpoints import router as stripe_router
+app.include_router(stripe_router, prefix="/stripe")
+
 # Static routes temporarily disabled
 # Will be implemented later
 

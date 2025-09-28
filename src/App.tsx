@@ -1734,6 +1734,8 @@ interface TableQuestion {
 
 // Import PricingPage and Legal Pages
 import PricingPage from './PricingPage';
+import SuccessPage from './SuccessPage';
+import DashboardPage from './DashboardPage';
 
 // Legal Pages Components
 const Footer = () => (
@@ -1834,6 +1836,14 @@ const CookiePolicy = () => (
         <h2 className="text-2xl font-semibold text-white">Your choices regarding cookies</h2>
         <p>You can set your browser to refuse all or some browser cookies, or to alert you when websites set or access cookies. If you disable or refuse cookies, please note that some parts of the website may become inaccessible or not function properly.</p>
       </div>
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-3 w-full px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <Settings className="w-4 h-4" />
+                Dashboard
+              </Link>
       <Link to="/" className="inline-block mt-8 text-blue-400 hover:text-blue-300">← Back to Home</Link>
     </div>
   </div>
@@ -1852,6 +1862,8 @@ function App() {
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/cookies" element={<CookiePolicy />} />
+        <Route path="/success" element={<SuccessPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
       </Routes>
     </Router>
   );

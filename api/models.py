@@ -17,6 +17,7 @@ class User(Base):
     last_reset_date = Column(DateTime, default=func.now())
     pdfs = relationship('PDF', back_populates='user')
     api_keys = relationship('APIKey', back_populates='user')
+    subscription = relationship('Subscription', back_populates='user', uselist=False)
 
 class PDF(Base):
     __tablename__ = 'pdfs'
@@ -44,3 +45,19 @@ class APIKey(Base):
     @classmethod
     def generate_api_key(cls):
         return f"pdfx_{''.join(secrets.choice('abcdefghijklmnopqrstuvwxyz0123456789') for _ in range(32))}"
+
+class Subscription(Base):
+    __tablename__ = 'subscriptions'
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), unique=True)
+    stripe_subscription_id = Column(String, unique=True, nullable=True)
+    stripe_customer_id = Column(String, nullable=True)
+    plan_type = Column(String, default='free')  # 'free', 'standard', 'pro'
+    status = Column(String, default='inactive')  # 'active', 'inactive', 'cancelled', 'past_due'
+    monthly_page_limit = Column(Integer, default=30)
+    current_period_start = Column(DateTime, nullable=True)
+    current_period_end = Column(DateTime, nullable=True)
+    cancel_at_period_end = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    user = relationship('User', back_populates='subscription')
