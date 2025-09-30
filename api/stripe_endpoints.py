@@ -6,7 +6,7 @@ from sqlalchemy import and_
 from models import User, Subscription
 from database import get_db
 from stripe_service import stripe_service
-from auth import get_current_user
+from endpoints import get_current_user
 import logging
 from datetime import datetime
 import json

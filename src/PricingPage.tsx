@@ -30,7 +30,7 @@ const pricingTiers: PricingTier[] = [
   },
   {
     name: "Standard",
-    price: 5,
+    price: 30,
     pages: 300,
     features: [
       "300 pages per month",
@@ -44,7 +44,7 @@ const pricingTiers: PricingTier[] = [
   },
   {
     name: "Pro",
-    price: 10,
+    price: 70,
     pages: 1000,
     features: [
       "1000 pages per month",
