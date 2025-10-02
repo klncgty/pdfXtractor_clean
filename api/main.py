@@ -276,21 +276,48 @@ async def process_pdf(
                 user.monthly_page_limit = 30
                 logger.info(f"Setting default monthly page limit to 30 for user {user.id}")
             
-            # Kota kontrolü
-            pages_left = user.monthly_page_limit - user.pages_processed_this_month
-            if pages_left <= 0:
-                raise HTTPException(
-                    status_code=403, 
-                    detail=f'Monthly quota exceeded. Monthly limit is 30 pages, you have processed {user.pages_processed_this_month} pages this month.'
-                )
+            # Check for active promotion
+            from models import UserPromotion
+            from datetime import datetime
+            from sqlalchemy.orm import selectinload
             
-            # İstenen sayfa sayısını kota limitine göre ayarla
-            pages_limit = min(pages_limit, pages_left)
-            logger.info(f"User has {pages_left} pages left in quota, will process {pages_limit} pages")
+            # Get user with promotion data
+            result = await db.execute(
+                select(User).options(selectinload(User.user_promotions)).where(User.id == user.id)
+            )
+            user_with_promos = result.scalars().first()
             
-            # PDF'i yükle ve işle
-            logger.debug("Initializing PDFTableProcessor...")
-            processor = PDFTableProcessor(file_path)
+            # Check for active promotion
+            has_active_promo = False
+            for promo in user_with_promos.user_promotions:
+                if promo.is_active and promo.expires_at > datetime.utcnow():
+                    has_active_promo = True
+                    break
+            
+            # Promo aktifse sınırsız, değilse normal kota kontrolü
+            if has_active_promo:
+                logger.info(f"User {user.id} has active promotion - unlimited processing")
+                # Sınırsız işleme için PDF'in toplam sayfa sayısını almalıyız
+                processor = PDFTableProcessor(file_path)
+                pages_limit = processor.total_pages  # Bu satır önemli - tüm PDF'i işleme
+                logger.info(f"Unlimited promo active - processing all {pages_limit} pages")
+            else:
+                # Normal kota kontrolü
+                pages_left = user.monthly_page_limit - user.pages_processed_this_month
+                if pages_left <= 0:
+                    raise HTTPException(
+                        status_code=403, 
+                        detail=f'Monthly quota exceeded. Monthly limit is 30 pages, you have processed {user.pages_processed_this_month} pages this month.'
+                    )
+                
+                # İstenen sayfa sayısını kota limitine göre ayarla
+                pages_limit = min(pages_limit, pages_left)
+                logger.info(f"User has {pages_left} pages left in quota, will process {pages_limit} pages")
+            
+            # PDF zaten yüklendiyse tekrar yükleme, aksi takdirde yükle
+            if not 'processor' in locals():
+                logger.debug("Initializing PDFTableProcessor...")
+                processor = PDFTableProcessor(file_path)
             logger.info(f"PDF loaded successfully")
                 
         except HTTPException:
@@ -372,9 +399,13 @@ async def process_pdf(
                 detail=f"Error processing tables: {str(process_error)}"
             )
 
-        # Kota harca
-        user.pages_processed_this_month += pages_limit
-        await db.commit()
+        # Kota harca - sadece promo yoksa
+        if not has_active_promo:
+            user.pages_processed_this_month += pages_limit
+            await db.commit()
+            logger.info(f"Used {pages_limit} pages from quota")
+        else:
+            logger.info(f"Unlimited promo active - no quota consumed")
 
         response_data = {
             "tables": results,
@@ -426,6 +457,10 @@ app.include_router(api_router, prefix="/api")
 # Include Stripe router
 from stripe_endpoints import router as stripe_router
 app.include_router(stripe_router, prefix="/stripe")
+
+# Include Promotion router
+from promo_endpoints import router as promo_router
+app.include_router(promo_router)
 
 # Static routes temporarily disabled
 # Will be implemented later

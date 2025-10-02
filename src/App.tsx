@@ -193,9 +193,52 @@ interface UserInfo {
   email: string;
   pages_processed_this_month?: number;
   monthly_page_limit?: number;
+  plan_type?: string;
+  promo_unlimited_expires?: string; // ISO date string
+  has_active_promo?: boolean;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Promotion utility functions
+const getPromoDaysRemaining = (expiresAt?: string): number => {
+  if (!expiresAt) return 0;
+  const expiry = new Date(expiresAt);
+  const now = new Date();
+  const diffTime = expiry.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+};
+
+const isPromoActive = (user?: UserInfo): boolean => {
+  return Boolean(user?.has_active_promo && getPromoDaysRemaining(user.promo_unlimited_expires) > 0);
+};
+
+// Utility function to refresh user data
+const refreshUserData = async (): Promise<UserInfo | null> => {
+  try {
+    const res = await axios.get(`${API_URL}/auth/me`, {
+      withCredentials: true,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
+      validateStatus: (status) => {
+        return status === 200 || status === 401;
+      }
+    });
+    
+    if (res.status === 200 && res.data && res.data.id) {
+      return res.data;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    return null;
+  }
+};
 
 export const UserDropdown = () => {
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -271,6 +314,24 @@ export const UserDropdown = () => {
     return null;
   }
 
+  // Plan color and label
+  let planLabel = 'Free';
+  let planColor = 'text-gray-400';
+  let pageLimit = 30;
+  if (user.plan_type === 'standard') {
+    planLabel = 'Standard';
+    planColor = 'text-gray-300'; // silver
+    pageLimit = user.monthly_page_limit || 300;
+  } else if (user.plan_type === 'pro') {
+    planLabel = 'Pro';
+    planColor = 'text-yellow-400'; // gold
+    pageLimit = user.monthly_page_limit || 1000;
+  }
+
+  // Check for active promotion
+  const promoActive = isPromoActive(user);
+  const promoDaysLeft = getPromoDaysRemaining(user.promo_unlimited_expires);
+
   return (
     <div className="relative user-dropdown">
       <button 
@@ -278,6 +339,13 @@ export const UserDropdown = () => {
         className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
       >
         <span>{user.name || user.email}</span>
+        {promoActive ? (
+          <span className="ml-2 font-semibold text-green-400">
+            {promoDaysLeft}d Unlimited
+          </span>
+        ) : (
+          <span className={`ml-2 font-semibold ${planColor}`}>{planLabel}</span>
+        )}
         <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -288,8 +356,17 @@ export const UserDropdown = () => {
         >
           <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
             <div className="font-medium text-gray-900">{user.name || user.email}</div>
-            <div className="text-xs">
-              {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
+            <div className="text-xs flex items-center gap-2">
+              {promoActive ? (
+                <span className="text-green-600 font-semibold">
+                  {promoDaysLeft} days left of unlimited access
+                </span>
+              ) : (
+                <>
+                  <span>{user.pages_processed_this_month || 0}/{pageLimit} pages used</span>
+                  <span className={`ml-1 font-semibold ${planColor}`}>{planLabel}</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -422,6 +499,25 @@ const Navbar = () => {
                   className="flex items-center gap-2 text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors"
                 >
                   <span>{user.name || user.email}</span>
+                  {(() => {
+                    const promoActive = isPromoActive(user);
+                    const promoDaysLeft = getPromoDaysRemaining(user.promo_unlimited_expires);
+                    
+                    if (promoActive) {
+                      return <span className="ml-2 font-semibold text-green-400">{promoDaysLeft}d Unlimited</span>;
+                    }
+                    
+                    let planLabel = 'Free';
+                    let planColor = 'text-gray-400';
+                    if (user.plan_type === 'standard') {
+                      planLabel = 'Standard';
+                      planColor = 'text-gray-300';
+                    } else if (user.plan_type === 'pro') {
+                      planLabel = 'Pro';
+                      planColor = 'text-yellow-400';
+                    }
+                    return <span className={`ml-2 font-semibold ${planColor}`}>{planLabel}</span>;
+                  })()}
                   <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -432,10 +528,59 @@ const Navbar = () => {
                   >
                     <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
                       <div className="font-medium text-gray-900">{user.name || user.email}</div>
-                      <div className="text-xs">
-                        {user.pages_processed_this_month || 0}/{user.monthly_page_limit || 100} pages used
+                      <div className="text-xs flex items-center gap-2">
+                        {(() => {
+                          const promoActive = isPromoActive(user);
+                          const promoDaysLeft = getPromoDaysRemaining(user.promo_unlimited_expires);
+                          
+                          if (promoActive) {
+                            return <span className="text-green-600 font-semibold">{promoDaysLeft} days left of unlimited access</span>;
+                          }
+                          
+                          let pageLimit = 30;
+                          let planLabel = 'Free';
+                          let planColor = 'text-gray-400';
+                          if (user.plan_type === 'standard') {
+                            pageLimit = user.monthly_page_limit || 300;
+                            planLabel = 'Standard';
+                            planColor = 'text-gray-300';
+                          } else if (user.plan_type === 'pro') {
+                            pageLimit = user.monthly_page_limit || 1000;
+                            planLabel = 'Pro';
+                            planColor = 'text-yellow-400';
+                          }
+                          return (
+                            <>
+                              <span>{user.pages_processed_this_month || 0}/{pageLimit} pages used</span>
+                              <span className={`ml-1 font-semibold ${planColor}`}>{planLabel}</span>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
+
+                    {isPromoActive(user) && (
+                      <button
+                        onClick={async () => {
+                          if (confirm('Are you sure you want to cancel your active promotion? This cannot be undone.')) {
+                            try {
+                              await axios.post(`${API_URL}/promo/cancel`, {}, { withCredentials: true });
+                              alert('Promotion cancelled successfully');
+                              // Reload user data
+                              const response = await axios.get(`${API_URL}/auth/me`, { withCredentials: true });
+                              setUser(response.data);
+                              setShowDropdown(false);
+                            } catch (error) {
+                              console.error('Error cancelling promotion:', error);
+                              alert('Failed to cancel promotion. Please try again.');
+                            }
+                          }
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 border-b border-gray-100"
+                      >
+                        Cancel Promotion
+                      </button>
+                    )}
 
                     <button
                       onClick={handleLogout}
@@ -1112,7 +1257,7 @@ const ProcessPage = () => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
-  const [uploadInfo, setUploadInfo] = useState<{ pdf_id?: number; pages_total?: number; pages_processed?: number; limit_left?: number } | null>(null);
+  const [uploadInfo, setUploadInfo] = useState<{ pdf_id?: number; pages_total?: number; pages_processed?: number; limit_left?: number; has_active_promo?: boolean } | null>(null);
   const [showUploadPopup, setShowUploadPopup] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -1142,7 +1287,7 @@ const ProcessPage = () => {
         const formData = new FormData();
         formData.append('file', droppedFile);
 
-        const uploadResponse = await axios.post(`${API_URL}/upload_pdf`, formData, { 
+        const uploadResponse = await axios.post(`${API_URL}/upload`, formData, { 
           withCredentials: true,
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -1170,7 +1315,7 @@ const ProcessPage = () => {
         const formData = new FormData();
         formData.append('file', selectedFile);
 
-        const uploadResponse = await axios.post(`${API_URL}/upload_pdf`, formData, { 
+        const uploadResponse = await axios.post(`${API_URL}/upload`, formData, { 
           withCredentials: true,
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -1200,8 +1345,13 @@ const ProcessPage = () => {
     setProcessing(true);
     setShowUploadPopup(false);
     try {
+      // Aktif promosyon varsa tüm sayfaları işle, yoksa kota limiti uygula
+      const pagesToProcess = uploadInfo.has_active_promo 
+        ? uploadInfo.pages_total 
+        : Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0);
+      
       const processResponse = await axios.get<ProcessResponse>(
-        `${API_URL}/process/${file.name}?output_format=both&pages_limit=${uploadInfo.pages_total}`,
+        `${API_URL}/process/${file.name}?output_format=both&pages_limit=${pagesToProcess || 30}`,
         { withCredentials: true }
       );      const newTableData: { [key: number]: any } = {};
       for (let i = 0; i < processResponse.data.tables.length; i++) {
@@ -1229,7 +1379,7 @@ const ProcessPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen" style={{ backgroundColor: '#262624' }}>
       {/* Loading overlay shown during upload or processing */}
       {(uploading || processing) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
@@ -1239,7 +1389,7 @@ const ProcessPage = () => {
           </div>
         </div>
       )}
-      <nav className="border-b border-white/10 bg-black/20 backdrop-blur-xl">
+      <nav className="border-b border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#262624aa' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
@@ -1247,6 +1397,9 @@ const ProcessPage = () => {
               <span className="ml-2 text-xl font-bold text-white">OCTRO</span>
             </Link>
             <div className="flex items-center gap-6">
+              <Link to="/pricing" className="text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors">
+                Pricing
+              </Link>
               <a
                 href="https://buymeacoffee.com/cgtyklnc1t"
                 target="_blank"
@@ -1395,30 +1548,50 @@ const ProcessPage = () => {
                       <span className="text-white font-medium">{uploadInfo.pages_total || 0}</span>
                     </div>
                     
-                    <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
-                      <span className="text-gray-300">Available Quota:</span>
-                      <span className="text-white font-medium">{uploadInfo.limit_left || 0} pages</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
-                      <span className="text-gray-300">Pages to Process:</span>
-                      <span className="text-white font-medium">{Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
-                      <span className="text-gray-300">Remaining Quota After:</span>
-                      <span className="text-white font-medium">
-                        {(uploadInfo.limit_left || 0) - Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0)} pages
-                      </span>
-                    </div>
+                    {uploadInfo.has_active_promo ? (
+                      // Promosyon kodlu kullanıcılar için
+                      <div className="flex justify-between items-center py-2 px-3 bg-green-500/20 rounded-lg border border-green-500/30">
+                        <span className="text-green-400">Active Promotion:</span>
+                        <span className="text-white font-medium">Unlimited Access</span>
+                      </div>
+                    ) : (
+                      // Normal kullanıcılar için kota bilgisi
+                      <>
+                        <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
+                          <span className="text-gray-300">Available Quota:</span>
+                          <span className="text-white font-medium">{uploadInfo.limit_left || 0} pages</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
+                          <span className="text-gray-300">Pages to Process:</span>
+                          <span className="text-white font-medium">{Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0)}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
+                          <span className="text-gray-300">Remaining Quota After:</span>
+                          <span className="text-white font-medium">
+                            {(uploadInfo.limit_left || 0) - Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0)} pages
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   
-                  {/* Warning message for quota limit */}
-                  {(uploadInfo.pages_total || 0) > (uploadInfo.limit_left || 0) && (
+                  {/* Warning message for quota limit - sadece promosyon yoksa göster */}
+                  {!uploadInfo.has_active_promo && (uploadInfo.pages_total || 0) > (uploadInfo.limit_left || 0) && (
                     <div className="py-3 px-4 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-6">
                       <p className="text-amber-400 text-sm">
                         <span className="font-medium">Note:</span> Due to your current quota limit, only the first {uploadInfo.limit_left || 0} pages will be processed.
                         {uploadInfo.limit_left === 0 && " Please upgrade your plan or wait for quota reset to process more pages."}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Promosyon varsa özel mesaj göster */}
+                  {uploadInfo.has_active_promo && (
+                    <div className="py-3 px-4 bg-green-500/10 border border-green-500/20 rounded-lg mb-6">
+                      <p className="text-green-400 text-sm">
+                        <span className="font-medium">Active Promotion:</span> All {uploadInfo.pages_total} pages will be processed with your unlimited access promotion!
                       </p>
                     </div>
                   )}
@@ -1578,8 +1751,8 @@ const ResultsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
-      <nav className="border-b border-white/10 bg-black/20 backdrop-blur-xl">
+    <div className="min-h-screen" style={{ backgroundColor: '#262624' }}>
+      <nav className="border-b border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#262624aa' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
@@ -1756,7 +1929,7 @@ const Footer = () => (
 );
 
 const TermsOfService = () => (
-  <div className="min-h-screen bg-black text-white px-4 py-16">
+  <div className="min-h-screen text-white px-4 py-16" style={{ backgroundColor: '#262624' }}>
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Terms of Service</h1>
       <div className="space-y-6 text-gray-300">
@@ -1782,7 +1955,7 @@ const TermsOfService = () => (
 );
 
 const PrivacyPolicy = () => (
-  <div className="min-h-screen bg-black text-white px-4 py-16">
+  <div className="min-h-screen text-white px-4 py-16" style={{ backgroundColor: '#262624' }}>
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Privacy Policy</h1>
       <div className="space-y-6 text-gray-300">
@@ -1815,7 +1988,7 @@ const PrivacyPolicy = () => (
 );
 
 const CookiePolicy = () => (
-  <div className="min-h-screen bg-black text-white px-4 py-16">
+  <div className="min-h-screen text-white px-4 py-16" style={{ backgroundColor: '#262624' }}>
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Cookie Policy</h1>
       <div className="space-y-6 text-gray-300">
@@ -1836,14 +2009,6 @@ const CookiePolicy = () => (
         <h2 className="text-2xl font-semibold text-white">Your choices regarding cookies</h2>
         <p>You can set your browser to refuse all or some browser cookies, or to alert you when websites set or access cookies. If you disable or refuse cookies, please note that some parts of the website may become inaccessible or not function properly.</p>
       </div>
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-3 w-full px-3 py-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                <Settings className="w-4 h-4" />
-                Dashboard
-              </Link>
       <Link to="/" className="inline-block mt-8 text-blue-400 hover:text-blue-300">← Back to Home</Link>
     </div>
   </div>

@@ -163,17 +163,37 @@ async def get_me(request: Request):
         return JSONResponse(status_code=200, content=None)
     try:
         async with AsyncSessionLocal() as db_session:
-            result = await db_session.execute(select(User).where(User.id == user_id))
+            # Import models here to avoid circular imports
+            from models import UserPromotion
+            from sqlalchemy.orm import selectinload
+            from datetime import datetime
+            
+            # Get user with promotion data
+            result = await db_session.execute(
+                select(User).options(selectinload(User.user_promotions)).where(User.id == user_id)
+            )
             user = result.scalars().first()
             if not user:
                 return JSONResponse(status_code=200, content=None)
-            return {
+            
+            # Check for active promotion
+            active_promo = None
+            for promo in user.user_promotions:
+                if promo.is_active and promo.expires_at > datetime.utcnow():
+                    active_promo = promo
+                    break
+            
+            user_data = {
                 "id": user.id,
                 "name": user.name,
                 "email": user.email,
                 "pages_processed_this_month": user.pages_processed_this_month,
-                "monthly_page_limit": user.monthly_page_limit
+                "monthly_page_limit": user.monthly_page_limit,
+                "has_active_promo": active_promo is not None,
+                "promo_unlimited_expires": active_promo.expires_at.isoformat() if active_promo else None
             }
+            
+            return user_data
     except Exception as e:
         print(f"Kullanıcı bilgisi hatası: {e}")
         return JSONResponse(status_code=500, content={"detail": "Sunucu hatası"})
@@ -323,3 +343,27 @@ async def delete_api_key(key_id: int, request: Request):
     except Exception as e:
         print(f"API key silme hatası: {e}")
         raise HTTPException(status_code=500, detail="Sunucu hatası")
+
+
+# Helper function for endpoints
+async def get_current_user(request: Request, db: AsyncSession = None):
+    """Get current user from session for use in endpoints"""
+    from database import get_db
+    
+    user_id = request.session.get('user_id')
+    if not user_id:
+        raise HTTPException(status_code=401, detail='Not authenticated')
+    
+    if db is None:
+        # If no db session provided, create one
+        from database import AsyncSessionLocal
+        async with AsyncSessionLocal() as db_session:
+            result = await db_session.execute(select(User).where(User.id == user_id))
+            user = result.scalars().first()
+    else:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail='User not found')
+    return user

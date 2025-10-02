@@ -3,6 +3,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
 import secrets
+import string
+import random
 
 Base = declarative_base()
 
@@ -18,6 +20,7 @@ class User(Base):
     pdfs = relationship('PDF', back_populates='user')
     api_keys = relationship('APIKey', back_populates='user')
     subscription = relationship('Subscription', back_populates='user', uselist=False)
+    user_promotions = relationship('UserPromotion', back_populates='user')
 
 class PDF(Base):
     __tablename__ = 'pdfs'
@@ -61,3 +64,55 @@ class Subscription(Base):
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     user = relationship('User', back_populates='subscription')
+
+class PromotionCode(Base):
+    __tablename__ = 'promotion_codes'
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True, nullable=False)
+    is_active = Column(Boolean, default=True)
+    max_uses = Column(Integer, default=1)  # How many times this code can be used
+    current_uses = Column(Integer, default=0)  # How many times it has been used
+    created_at = Column(DateTime, default=func.now())
+    expires_at = Column(DateTime, nullable=True)  # Optional expiry for the code itself
+    description = Column(String, nullable=True)  # Admin notes
+    user_promotions = relationship('UserPromotion', back_populates='promotion_code')
+    
+    @classmethod
+    def generate_code(cls, length=8):
+        """Generate a random promotion code"""
+        characters = string.ascii_uppercase + string.digits
+        return ''.join(random.choice(characters) for _ in range(length))
+    
+    @property
+    def is_valid(self):
+        """Check if code is still valid"""
+        if not self.is_active:
+            return False
+        if self.current_uses >= self.max_uses:
+            return False
+        if self.expires_at and self.expires_at < func.now():
+            return False
+        return True
+
+class UserPromotion(Base):
+    __tablename__ = 'user_promotions'
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    promotion_code_id = Column(Integer, ForeignKey('promotion_codes.id'), nullable=False)
+    activated_at = Column(DateTime, default=func.now())
+    expires_at = Column(DateTime, nullable=False)  # When the promotion expires for this user
+    is_active = Column(Boolean, default=True)
+    user = relationship('User', back_populates='user_promotions')
+    promotion_code = relationship('PromotionCode', back_populates='user_promotions')
+    
+    @property
+    def days_remaining(self):
+        """Calculate days remaining for this promotion"""
+        if not self.is_active or not self.expires_at:
+            return 0
+        from datetime import datetime
+        now = datetime.utcnow()
+        if self.expires_at <= now:
+            return 0
+        diff = self.expires_at - now
+        return max(0, diff.days + (1 if diff.seconds > 0 else 0))

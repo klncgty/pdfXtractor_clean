@@ -1,0 +1,102 @@
+📧 Promosyon Kodu Email Template'leri
+
+=== 🎯 TEMEL TEMPLATE ===
+
+Konu: Size Özel Promosyon Kodunuz - 7 Gün Sınırsız Erişim!
+
+Merhaba [KULLANICI_ADI],
+
+Size özel promosyon kodunuz hazır: **[PROMO_KODU]**
+
+🎉 Bu kod ile neler yapabilirsiniz:
+- 7 gün boyunca SINIRSIZ PDF işleme
+- Tüm premium özelliklere erişim
+- Sayfa limiti yok!
+
+🔗 Nasıl kullanılır:
+1. http://localhost:5174 adresine gidin
+2. Google hesabınızla giriş yapın
+3. "Pricing" sayfasına gidin
+4. "Enter Promo Code" butonuna tıklayın
+5. Kodunuzu girin: [PROMO_KODU]
+
+⏰ Önemli: Kod 30 gün içinde kullanılmalı!
+
+İyi kullanımlar!
+
+---
+
+=== 🎁 ÖZEL DAVET TEMPLATE ===
+
+Konu: Özel Davetiniz - Premium PDF İşleme
+
+Merhaba [KULLANICI_ADI],
+
+Sizi premium PDF işleme platformumuza davet etmek istiyoruz!
+
+🎁 Size özel hediye kodunuz: **[PROMO_KODU]**
+
+✨ Bu kod ile:
+• 7 gün boyunca sınırsız PDF tablo çıkarma
+• AI destekli veri analizi
+• Hızlı CSV/JSON export
+
+🚀 Hemen başlayın:
+→ http://localhost:5174
+→ Kodu girin: [PROMO_KODU]
+
+Bu fırsatı kaçırmayın!
+
+---
+
+=== 🔥 ACİL TEMPLATE ===
+
+Konu: ⚡ Son 24 Saat - Ücretsiz Premium Erişim!
+
+[KULLANICI_ADI], 
+
+Son 24 saatiniz! 
+
+Kodunuz: **[PROMO_KODU]**
+
+7 gün ücretsiz premium → http://localhost:5174
+
+Hemen kullanın!
+
+---
+
+=== 🎯 TEKNİK TEMPLATE ===
+
+Konu: API Test Kodunuz Hazır
+
+Merhaba [KULLANICI_ADI],
+
+Test amaçlı promosyon kodunuz: [PROMO_KODU]
+
+Platform: http://localhost:5174
+Geçerlilik: 30 gün
+Kullanım: 1 kere
+Süre: 7 gün sınırsız
+
+Test sonuçlarınızı bekliyoruz.
+
+---
+
+🎨 KULLANIM ÖRNEKLERİ:
+
+1. [KULLANICI_ADI] → Ahmet Yılmaz
+2. [PROMO_KODU] → WELCOME2024  
+3. Konu satırını özelleştirin
+4. İçeriği duruma göre düzenleyin
+
+📧 GÖNDERME ÖNERİLERİ:
+
+✅ Kişiselleştirin
+✅ Aciliyet ekleyin  
+✅ Basit talimatlar verin
+✅ Destek bilgisi ekleyin
+✅ Kod expiry'si belirtin
+
+❌ Çok uzun yazmayın
+❌ Teknik detaya girmeyin
+❌ Spam gibi görünmeyin

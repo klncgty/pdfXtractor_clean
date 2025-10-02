@@ -68,9 +68,11 @@ class PDFTableProcessor:
 
     def save_as_json(self,df, output_dir, table_index):
         """DataFrame'i JSON formatında kaydeder."""
+        # main.py'deki OUTPUT_DIR değişkenini kullan
+        real_output_dir = os.path.join(os.path.dirname(__file__), '..', 'outputs')
         json_output = df.to_json(orient='records', force_ascii=False)
-        os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, f'output_{table_index}.json')
+        os.makedirs(real_output_dir, exist_ok=True)
+        output_file = os.path.join(real_output_dir, f'output_{table_index}.json')
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(json.loads(json_output), f, ensure_ascii=False, indent=4)
         print(f"JSON dosyası {output_file} olarak kaydedildi.")
@@ -78,8 +80,10 @@ class PDFTableProcessor:
 
     def save_as_csv(self,df, output_dir, table_index):
         """DataFrame'i CSV formatında kaydeder."""
-        os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, f'output_{table_index}.csv')
+        # main.py'deki OUTPUT_DIR değişkenini kullan
+        real_output_dir = os.path.join(os.path.dirname(__file__), '..', 'outputs')
+        os.makedirs(real_output_dir, exist_ok=True)
+        output_file = os.path.join(real_output_dir, f'output_{table_index}.csv')
         df.to_csv(output_file, index=False, encoding='utf-8-sig')
         print(f"CSV dosyası {output_file} olarak kaydedildi.")
         return output_file
@@ -91,7 +95,8 @@ class PDFTableProcessor:
         table_obj = self.per_page_tables[page_index][table_index_in_page]
         ft = formatter.extract(table_obj, margin='auto', padding=None)
         image = ft.visualize()
-        output_dir = 'outputs'
+        # main.py'deki OUTPUT_DIR değişkenini kullan
+        output_dir = os.path.join(os.path.dirname(__file__), '..', 'outputs')
         os.makedirs(output_dir, exist_ok=True)
         image_output_path = os.path.join(output_dir, f'page_{page_index}_table_{table_index_in_page}.png')
         image.save(image_output_path)

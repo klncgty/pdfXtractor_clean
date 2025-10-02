@@ -26,7 +26,7 @@ const ProcessPage = () => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
-  const [uploadInfo, setUploadInfo] = useState<{ pdf_id?: number; pages_total?: number; pages_processed?: number; limit_left?: number } | null>(null);
+  const [uploadInfo, setUploadInfo] = useState<{ pdf_id?: number; pages_total?: number; pages_processed?: number; limit_left?: number; has_active_promo?: boolean } | null>(null);
   const [showUploadPopup, setShowUploadPopup] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -56,7 +56,7 @@ const ProcessPage = () => {
         const formData = new FormData();
         formData.append('file', droppedFile);
 
-        const uploadResponse = await axios.post(`${API_URL}/upload_pdf`, formData, { 
+        const uploadResponse = await axios.post(`${API_URL}/upload`, formData, { 
           withCredentials: true,
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -84,7 +84,7 @@ const ProcessPage = () => {
         const formData = new FormData();
         formData.append('file', selectedFile);
 
-        const uploadResponse = await axios.post(`${API_URL}/upload_pdf`, formData, { 
+        const uploadResponse = await axios.post(`${API_URL}/upload`, formData, { 
           withCredentials: true,
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -112,8 +112,13 @@ const ProcessPage = () => {
     setProcessing(true);
     setShowUploadPopup(false);
     try {
+      // Aktif promosyon varsa tüm sayfaları işle, yoksa kota limiti uygula
+      const pagesToProcess = uploadInfo.has_active_promo 
+        ? uploadInfo.pages_total 
+        : Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0);
+      
       const processResponse = await axios.get<ProcessResponse>(
-        `${API_URL}/process/${file.name}?output_format=both&pages_limit=${uploadInfo.pages_total}`,
+        `${API_URL}/process/${file.name}?output_format=both&pages_limit=${pagesToProcess || 30}`,
         { withCredentials: true }
       );
       const newTableData: { [key: number]: any } = {};
@@ -142,7 +147,7 @@ const ProcessPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen" style={{ backgroundColor: '#262624' }}>
       {/* Loading overlay shown during upload or processing */}
       {(uploading || processing) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
@@ -152,7 +157,7 @@ const ProcessPage = () => {
           </div>
         </div>
       )}
-      <nav className="border-b border-white/10 bg-black/20 backdrop-blur-xl">
+      <nav className="border-b border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#262624aa' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
@@ -160,6 +165,9 @@ const ProcessPage = () => {
               <span className="ml-2 text-xl font-bold text-white">Octro</span>
             </Link>
             <div className="flex items-center gap-6">
+              <Link to="/pricing" className="text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors">
+                Pricing
+              </Link>
               <a
                 href="https://buymeacoffee.com/cgtyklnc1t"
                 target="_blank"
@@ -308,30 +316,50 @@ const ProcessPage = () => {
                       <span className="text-white font-medium">{uploadInfo.pages_total || 0}</span>
                     </div>
                     
-                    <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
-                      <span className="text-gray-300">Available Quota:</span>
-                      <span className="text-white font-medium">{uploadInfo.limit_left || 0} pages</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
-                      <span className="text-gray-300">Pages to Process:</span>
-                      <span className="text-white font-medium">{Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
-                      <span className="text-gray-300">Remaining Quota After:</span>
-                      <span className="text-white font-medium">
-                        {(uploadInfo.limit_left || 0) - Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0)} pages
-                      </span>
-                    </div>
+                    {uploadInfo.has_active_promo ? (
+                      // Promosyon kodlu kullanıcılar için
+                      <div className="flex justify-between items-center py-2 px-3 bg-green-500/20 rounded-lg border border-green-500/30">
+                        <span className="text-green-400">Active Promotion:</span>
+                        <span className="text-white font-medium">Unlimited Access</span>
+                      </div>
+                    ) : (
+                      // Normal kullanıcılar için kota bilgisi
+                      <>
+                        <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
+                          <span className="text-gray-300">Available Quota:</span>
+                          <span className="text-white font-medium">{uploadInfo.limit_left || 0} pages</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
+                          <span className="text-gray-300">Pages to Process:</span>
+                          <span className="text-white font-medium">{Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0)}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg">
+                          <span className="text-gray-300">Remaining Quota After:</span>
+                          <span className="text-white font-medium">
+                            {(uploadInfo.limit_left || 0) - Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0)} pages
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   
-                  {/* Warning message for quota limit */}
-                  {(uploadInfo.pages_total || 0) > (uploadInfo.limit_left || 0) && (
+                  {/* Warning message for quota limit - sadece promosyon yoksa göster */}
+                  {!uploadInfo.has_active_promo && (uploadInfo.pages_total || 0) > (uploadInfo.limit_left || 0) && (
                     <div className="py-3 px-4 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-6">
                       <p className="text-amber-400 text-sm">
                         <span className="font-medium">Note:</span> Due to your current quota limit, only the first {uploadInfo.limit_left || 0} pages will be processed.
                         {uploadInfo.limit_left === 0 && " Please upgrade your plan or wait for quota reset to process more pages."}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Promosyon varsa özel mesaj göster */}
+                  {uploadInfo.has_active_promo && (
+                    <div className="py-3 px-4 bg-green-500/10 border border-green-500/20 rounded-lg mb-6">
+                      <p className="text-green-400 text-sm">
+                        <span className="font-medium">Active Promotion:</span> All {uploadInfo.pages_total} pages will be processed with your unlimited access promotion!
                       </p>
                     </div>
                   )}

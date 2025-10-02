@@ -27,6 +27,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     return user
 
 @router.post('/upload_pdf')
+@router.post('/upload')  # İki URL'ye aynı endpoint hizmet veriyor
 async def upload_pdf(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
@@ -58,10 +59,38 @@ async def upload_pdf(
     db.add(pdf)
     await db.commit()
     await db.refresh(pdf)
-
-    return {
-        'pdf_id': pdf.id,
-        'pages_total': pages_total,
-        'pages_processed': 0,  # Henüz kota harcanmadı
-        'limit_left': user.monthly_page_limit - user.pages_processed_this_month
-    }
+    
+    # Aktif promosyonu kontrol et
+    from models import UserPromotion
+    from sqlalchemy import and_
+    
+    # Kullanıcının aktif promosyonu var mı?
+    result = await db.execute(
+        select(UserPromotion).filter(
+            and_(
+                UserPromotion.user_id == user.id,
+                UserPromotion.is_active == True,
+                UserPromotion.expires_at > datetime.utcnow()
+            )
+        )
+    )
+    active_promo = result.scalars().first()
+    
+    # Eğer aktif promosyon varsa, sınırsız limit göster (9999)
+    if active_promo:
+        return {
+            'pdf_id': pdf.id,
+            'pages_total': pages_total,
+            'pages_processed': 0,
+            'limit_left': 9999,  # Sınırsız limit göster
+            'has_active_promo': True
+        }
+    else:
+        # Normal kota
+        return {
+            'pdf_id': pdf.id,
+            'pages_total': pages_total,
+            'pages_processed': 0,
+            'limit_left': user.monthly_page_limit - user.pages_processed_this_month,
+            'has_active_promo': False
+        }

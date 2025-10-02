@@ -26,6 +26,8 @@ interface UserData {
   email: string;
   pages_processed_this_month: number;
   monthly_page_limit: number;
+  promo_unlimited_expires?: string; // ISO date string
+  has_active_promo?: boolean;
 }
 
 interface SubscriptionData {
@@ -147,10 +149,27 @@ export const DashboardPage = () => {
   }
 
   const usagePercentage = userData ? (userData.pages_processed_this_month / userData.monthly_page_limit) * 100 : 0;
+  
+  // Promotion status helpers
+  const getPromoDaysRemaining = (expiresAt?: string): number => {
+    if (!expiresAt) return 0;
+    const expiry = new Date(expiresAt);
+    const now = new Date();
+    const diffTime = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  };
+
+  const isPromoActive = (user?: UserData): boolean => {
+    return Boolean(user?.has_active_promo && getPromoDaysRemaining(user.promo_unlimited_expires) > 0);
+  };
+
+  const promoActive = userData ? isPromoActive(userData) : false;
+  const promoDaysLeft = userData ? getPromoDaysRemaining(userData.promo_unlimited_expires) : 0;
 
   return (
-    <div className="min-h-screen bg-black">
-      <nav className="border-b border-white/10 bg-black/20 backdrop-blur-xl">
+    <div className="min-h-screen" style={{ backgroundColor: '#262624' }}>
+      <nav className="border-b border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#262624aa' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
@@ -199,29 +218,64 @@ export const DashboardPage = () => {
               </div>
               
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Pages Processed</span>
-                  <span className="text-white font-medium">
-                    {userData?.pages_processed_this_month || 0} / {userData?.monthly_page_limit || 30}
-                  </span>
-                </div>
-                
-                <div className="w-full bg-gray-700 rounded-full h-3">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(usagePercentage, 100)}%` }}
-                  />
-                </div>
-                
-                <div className="text-sm text-gray-400">
-                  {usagePercentage >= 100 ? (
-                    <span className="text-red-400">Quota exceeded</span>
-                  ) : usagePercentage >= 80 ? (
-                    <span className="text-yellow-400">Quota almost full</span>
-                  ) : (
-                    <span>{(100 - usagePercentage).toFixed(1)}% remaining</span>
-                  )}
-                </div>
+                {promoActive ? (
+                  <div className="text-center py-4">
+                    <div className="text-green-400 text-2xl font-bold mb-2">UNLIMITED</div>
+                    <div className="text-green-300 text-sm mb-4">
+                      {promoDaysLeft} days remaining of unlimited access
+                    </div>
+                    <div className="w-full bg-green-500/20 rounded-full h-3">
+                      <div className="bg-gradient-to-r from-green-400 to-green-500 h-3 rounded-full w-full" />
+                    </div>
+                    <div className="text-sm text-green-400 mt-2 mb-4">
+                      Promotion active - Process unlimited pages!
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (confirm('Are you sure you want to cancel your active promotion? This cannot be undone.')) {
+                          try {
+                            await axios.post(`${API_URL}/promo/cancel`, {}, { withCredentials: true });
+                            alert('Promotion cancelled successfully');
+                            // Reload dashboard data
+                            fetchDashboardData();
+                          } catch (error) {
+                            console.error('Error cancelling promotion:', error);
+                            alert('Failed to cancel promotion. Please try again.');
+                          }
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm"
+                    >
+                      Cancel Promotion
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Pages Processed</span>
+                      <span className="text-white font-medium">
+                        {userData?.pages_processed_this_month || 0} / {userData?.monthly_page_limit || 30}
+                      </span>
+                    </div>
+                    
+                    <div className="w-full bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(usagePercentage, 100)}%` }}
+                      />
+                    </div>
+                    
+                    <div className="text-sm text-gray-400">
+                      {usagePercentage >= 100 ? (
+                        <span className="text-red-400">Quota exceeded</span>
+                      ) : usagePercentage >= 80 ? (
+                        <span className="text-yellow-400">Quota almost full</span>
+                      ) : (
+                        <span>{(100 - usagePercentage).toFixed(1)}% remaining</span>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

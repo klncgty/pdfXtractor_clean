@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Coffee } from 'lucide-react';
+import { Check, Coffee, X, Gift } from 'lucide-react';
 import axios from 'axios';
 import { UserDropdown } from './App';
 import octoLogo from './octo.png';
+import octo2Image from './octo_2.jpeg';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -58,11 +59,216 @@ const pricingTiers: PricingTier[] = [
   }
 ];
 
+// PromoModal Component
+interface PromoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+const PromoModal: React.FC<PromoModalProps> = ({ isOpen, onClose, onSuccess }) => {
+  const [promoCode, setPromoCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Handle keyboard events
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleClose();
+      } else if (event.key === 'Enter' && !isLoading && !showSuccess) {
+        handleActivate();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, isLoading, showSuccess]);
+
+  const handleActivate = async () => {
+    if (!promoCode.trim()) {
+      setError('Please enter a promotion code');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await axios.post(`${API_URL}/promo/validate`, {
+        code: promoCode.trim()
+      }, {
+        withCredentials: true,
+        timeout: 10000 // 10 second timeout
+      });
+
+      if (response.data.success) {
+        setShowSuccess(true);
+        setTimeout(() => {
+          setShowSuccess(false);
+          onSuccess();
+          onClose();
+        }, 2000);
+      } else {
+        setError(response.data.message || 'Invalid promotion code');
+      }
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 401) {
+          setError('Please log in to activate promotion codes');
+        } else if (err.response?.status === 429) {
+          setError('Too many attempts. Please try again later.');
+        } else if (err.code === 'ECONNABORTED') {
+          setError('Request timed out. Please try again.');
+        } else {
+          setError(err.response?.data?.detail || err.response?.data?.message || 'Invalid promotion code');
+        }
+      } else {
+        setError('An error occurred. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setPromoCode('');
+    setError(null);
+    setShowSuccess(false);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={handleClose} />
+      <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 w-full max-w-md mx-4 shadow-2xl">
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        <div className="text-center mb-6">
+          <img 
+            src={octo2Image} 
+            alt="Octro Promotion" 
+            className="w-24 h-24 mx-auto mb-4 rounded-full"
+          />
+          <h3 className="text-xl font-bold text-white mb-2">Promotion Code</h3>
+          <p className="text-gray-300 text-sm leading-relaxed">
+            If you have a promotion code, you can unlock 1 week of unlimited page processing.
+          </p>
+        </div>
+
+        {showSuccess ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-green-400" />
+            </div>
+            <h4 className="text-lg font-semibold text-white mb-2">Congratulations!</h4>
+            <p className="text-green-400">You have unlocked 1 week of unlimited page processing.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isLoading && promoCode.trim()) {
+                    handleActivate();
+                  }
+                }}
+                placeholder="Enter promotion code"
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500/50 transition-colors"
+                disabled={isLoading}
+                autoFocus
+              />
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleActivate}
+              disabled={isLoading || !promoCode.trim()}
+              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-500/50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors duration-200"
+            >
+              {isLoading ? 'Activating...' : 'Activate'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const PricingPage = () => {
+  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check if user is logged in
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/auth/me`, {
+          withCredentials: true,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+          validateStatus: (status) => {
+            return status === 200 || status === 401;
+          }
+        });
+        
+        if (res.status === 200 && res.data && res.data.id) {
+          setUserData(res.data);
+        } else {
+          setUserData(null);
+        }
+      } catch (error) {
+        setUserData(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const handlePromoSuccess = () => {
+    // Close modal and optionally refresh user data
+    setShowPromoModal(false);
+    // You could emit an event or use a context to refresh user data
+    // For now, a simple page refresh ensures all components get updated data
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+  };
   const handleSubscribe = async (tier: PricingTier) => {
-    // Free tier için login sayfasına yönlendir
+    // If free tier, check authentication status from the state
     if (tier.price === 0) {
-      window.location.href = `${API_URL}/auth/login`;
+      if (userData) {
+        // User is logged in, redirect to process page
+        window.location.href = `/process`;
+      } else {
+        // User is not logged in, redirect to login page
+        window.location.href = `${API_URL}/auth/login`;
+      }
       return;
     }
     
@@ -89,8 +295,8 @@ export const PricingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
-      <nav className="border-b border-white/10 bg-black/20 backdrop-blur-xl">
+    <div className="min-h-screen" style={{ backgroundColor: '#262624' }}>
+      <nav className="border-b border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#262624aa' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
@@ -175,17 +381,33 @@ export const PricingPage = () => {
                     : 'bg-blue-500 text-white hover:bg-blue-600'
                   }`}
               >
-                {tier.price === 0 ? 'Get Started' : 'Subscribe Now'}
+                {tier.price === 0 ? (
+                  userData ? 'Process PDF' : 'Get Started'
+                ) : 'Subscribe Now'}
               </button>
             </div>
           ))}
         </div>
 
         <div className="mt-16 text-center">
-          <p className="text-gray-400">
+          <p className="text-gray-400 mb-6">
             All plans include SSL security, real-time updates, and 99.9% uptime guarantee
           </p>
+          
+          <button
+            onClick={() => setShowPromoModal(true)}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 transform hover:scale-105"
+          >
+            <Gift className="w-5 h-5" />
+            Have a promotion code?
+          </button>
         </div>
+
+        <PromoModal
+          isOpen={showPromoModal}
+          onClose={() => setShowPromoModal(false)}
+          onSuccess={handlePromoSuccess}
+        />
       </main>
     </div>
   );

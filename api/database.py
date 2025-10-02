@@ -14,6 +14,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get database URL from environment or use SQLite as default
+# To use PostgreSQL, set DATABASE_URL environment variable to:
+# postgresql+asyncpg://username:password@localhost/dbname
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///./octro.db')
 
 # Configure async engine for SQLite

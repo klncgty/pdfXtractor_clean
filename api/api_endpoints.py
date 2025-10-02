@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from auth import verify_api_key
 from models import User, APIKey
 from table_format import PDFTableProcessor
+from sqlalchemy.future import select
 import os
 import tempfile
 from typing import List, Optional
@@ -50,63 +51,88 @@ async def api_extract_tables(
             # Initialize PDF processor
             processor = PDFTableProcessor(temp_file_path)
             
-            # Process with page limit
-            pages_to_process = min(pages_limit or 999, user.monthly_page_limit)
-            tables_data = []
-            pages_processed = 0
+            # Check for active promotion
+            from models import UserPromotion
+            from datetime import datetime
+            from database import AsyncSessionLocal
+            from sqlalchemy.orm import selectinload
             
-            # Get PDF info
-            total_pages = processor.page_count
-            
-            for page_num in range(min(pages_to_process, total_pages)):
-                page_tables = processor.per_page_tables.get(page_num, [])
-                pages_processed = page_num + 1
+            async with AsyncSessionLocal() as db:
+                # Get user with promotion data
+                result = await db.execute(
+                    select(User).options(selectinload(User.user_promotions)).where(User.id == user.id)
+                )
+                user_with_promos = result.scalars().first()
                 
-                for table_idx, table in enumerate(page_tables):
-                    try:
-                        # Extract table data
-                        extracted_data = processor.format_single_table(table)
-                        
-                        table_data = {
-                            "page": page_num + 1,
-                            "table_index": table_idx,
-                            "data": extracted_data
-                        }
-                        
-                        # Add format-specific data
-                        if output_format in ['json', 'both']:
-                            table_data["json_data"] = extracted_data
-                        
-                        if output_format in ['csv', 'both']:
-                            # Convert to CSV format
-                            import csv
-                            import io
-                            output = io.StringIO()
-                            if extracted_data:
-                                writer = csv.writer(output)
-                                writer.writerows(extracted_data)
-                                table_data["csv_data"] = output.getvalue()
-                        
-                        tables_data.append(table_data)
-                        
-                    except Exception as e:
-                        print(f"Error processing table {table_idx} on page {page_num + 1}: {e}")
-                        continue
-            
-            # Return structured response
-            return {
-                "success": True,
-                "filename": file.filename,
-                "pages_total": total_pages,
-                "pages_processed": pages_processed,
-                "tables_found": len(tables_data),
-                "tables": tables_data,
-                "api_usage": {
-                    "requests_made_this_month": api_key.requests_made_this_month,
-                    "monthly_request_limit": api_key.monthly_request_limit,
-                    "remaining_requests": api_key.monthly_request_limit - api_key.requests_made_this_month
+                # Check for active promotion
+                has_active_promo = False
+                for promo in user_with_promos.user_promotions:
+                    if promo.is_active and promo.expires_at > datetime.utcnow():
+                        has_active_promo = True
+                        break
+                
+                # Process with page limit - unlimited if promo active
+                if has_active_promo:
+                    pages_to_process = pages_limit or 999  # Unlimited with promotion
+                else:
+                    pages_to_process = min(pages_limit or 999, user.monthly_page_limit)
+                
+                tables_data = []
+                pages_processed = 0
+                
+                # Get PDF info
+                total_pages = processor.page_count
+                
+                for page_num in range(min(pages_to_process, total_pages)):
+                    page_tables = processor.per_page_tables.get(page_num, [])
+                    pages_processed = page_num + 1
+                    
+                    for table_idx, table in enumerate(page_tables):
+                        try:
+                            # Extract table data
+                            extracted_data = processor.format_single_table(table)
+                            
+                            table_data = {
+                                "page": page_num + 1,
+                                "table_index": table_idx,
+                                "data": extracted_data
+                            }
+                            
+                            # Add format-specific data
+                            if output_format in ['json', 'both']:
+                                table_data["json_data"] = extracted_data
+                            
+                            if output_format in ['csv', 'both']:
+                                # Convert to CSV format
+                                import csv
+                                import io
+                                output = io.StringIO()
+                                if extracted_data:
+                                    writer = csv.writer(output)
+                                    writer.writerows(extracted_data)
+                                    table_data["csv_data"] = output.getvalue()
+                            
+                            tables_data.append(table_data)
+                            
+                        except Exception as e:
+                            print(f"Error processing table {table_idx} on page {page_num + 1}: {e}")
+                            continue
+                
+                # Return structured response
+                return {
+                    "success": True,
+                    "filename": file.filename,
+                    "pages_total": total_pages,
+                    "pages_processed": pages_processed,
+                    "tables_found": len(tables_data),
+                    "tables": tables_data,
+                    "promotion_active": has_active_promo,
+                    "api_usage": {
+                        "requests_made_this_month": api_key.requests_made_this_month,
+                        "monthly_request_limit": api_key.monthly_request_limit,
+                        "remaining_requests": api_key.monthly_request_limit - api_key.requests_made_this_month
+                    }
                 }
-            }
             
         finally:
             # Clean up temporary file
