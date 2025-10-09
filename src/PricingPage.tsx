@@ -22,7 +22,8 @@ const pricingTiers: PricingTier[] = [
     price: 0,
     pages: 30,
     features: [
-      "30 pages per month",
+      
+      "10MB max file size per upload",
       "CSV & JSON export",
       "Basic support",
       "AI-powered table detection",
@@ -34,21 +35,20 @@ const pricingTiers: PricingTier[] = [
     price: 30,
     pages: 300,
     features: [
-      "300 pages per month",
+      "50MB max file size per upload",
       "CSV & JSON export",
       "Priority support",
       "AI-powered table detection",
-      "Batch processing",
       "API access"
     ],
     isPopular: true
   },
   {
-    name: "Pro",
+    name: "Pro (Ideal For Business)",
     price: 70,
     pages: 1000,
     features: [
-      "1000 pages per month",
+      "100MB max file size per upload",
       "CSV & JSON export",
       "Premium support",
       "AI-powered table detection",
@@ -216,7 +216,7 @@ const PromoModal: React.FC<PromoModalProps> = ({ isOpen, onClose, onSuccess }) =
 export const PricingPage = () => {
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [userData, setUserData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
 
   // Check if user is logged in
   useEffect(() => {
@@ -237,13 +237,20 @@ export const PricingPage = () => {
         
         if (res.status === 200 && res.data && res.data.id) {
           setUserData(res.data);
+          // fetch subscription status when logged in
+          try {
+            const subRes = await axios.get(`${API_URL}/stripe/subscription-status`, { withCredentials: true });
+            setSubscriptionData(subRes.data);
+          } catch (err) {
+            setSubscriptionData(null);
+          }
         } else {
           setUserData(null);
         }
       } catch (error) {
         setUserData(null);
       } finally {
-        setIsLoading(false);
+        // finished auth check
       }
     };
 
@@ -273,13 +280,25 @@ export const PricingPage = () => {
     }
     
     try {
+      // Extract the base plan type from tier name
+      const planType = tier.name.toLowerCase().includes('pro') ? 'pro' : 
+                      tier.name.toLowerCase().includes('standard') ? 'standard' : 
+                      tier.name.toLowerCase();
+
+      // If user already has this plan, show appropriate action
+      if (subscriptionData && subscriptionData.has_subscription && subscriptionData.plan_type === planType) {
+        // If same plan, show cancel action instead (handled elsewhere)
+        // No-op here
+        return;
+      }
+
       // Paid tiers için Stripe checkout - plan_type olarak gönder
       const response = await axios.post(`${API_URL}/stripe/create-checkout-session`, {
-        plan_type: tier.name.toLowerCase(),
+        plan_type: planType,
       }, {
         withCredentials: true
       });
-      
+
       // Redirect to Stripe checkout page
       window.location.href = response.data.checkout_url;
     } catch (error) {
@@ -291,6 +310,20 @@ export const PricingPage = () => {
       } else {
         alert('Ödeme işlemi başlatılamadı. Lütfen tekrar deneyin.');
       }
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      const res = await axios.post(`${API_URL}/stripe/cancel-subscription`, {}, { withCredentials: true });
+      alert(res.data.message || 'Subscription cancellation scheduled');
+      // Refresh subscription status
+      const subRes = await axios.get(`${API_URL}/stripe/subscription-status`, { withCredentials: true });
+      setSubscriptionData(subRes.data);
+      window.location.reload();
+    } catch (err) {
+      console.error('Cancel error', err);
+      alert('Failed to cancel subscription.');
     }
   };
 
@@ -373,18 +406,38 @@ export const PricingPage = () => {
                 ))}
               </ul>
 
-              <button
-                onClick={() => handleSubscribe(tier)}
-                className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200
-                  ${tier.price === 0 
-                    ? 'bg-white/10 text-white hover:bg-white/20' 
-                    : 'bg-blue-500 text-white hover:bg-blue-600'
-                  }`}
-              >
-                {tier.price === 0 ? (
-                  userData ? 'Process PDF' : 'Get Started'
-                ) : 'Subscribe Now'}
-              </button>
+              {/* Conditional buttons based on subscription status */}
+              {tier.price > 0 ? (
+                // Paid tiers
+                subscriptionData && subscriptionData.has_subscription ? (
+                  (() => {
+                    const planType = tier.name.toLowerCase().includes('pro') ? 'pro' : 
+                                    tier.name.toLowerCase().includes('standard') ? 'standard' : 
+                                    tier.name.toLowerCase();
+                    return subscriptionData.plan_type === planType ? (
+                      // User is on this plan -> show Cancel
+                      <button onClick={handleCancel} className="w-full py-3 px-4 rounded-lg font-medium bg-red-500 hover:bg-red-600 text-white">Cancel subscription</button>
+                    ) : (
+                      // User is on another paid plan or free -> show Subscribe/Upgrade
+                      <button onClick={() => handleSubscribe(tier)} className="w-full py-3 px-4 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white">
+                        {subscriptionData && subscriptionData.plan_type === 'standard' && planType === 'pro' ? 'Upgrade to Pro' : `Subscribe Now`}
+                      </button>
+                    );
+                  })()
+                ) : (
+                  // Not subscribed
+                  <button onClick={() => handleSubscribe(tier)} className="w-full py-3 px-4 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white">Subscribe Now</button>
+                )
+              ) : (
+                // Free tier button
+                tier.price === 0 ? (
+                  userData ? (
+                    <button onClick={() => window.location.href = '/process'} className="w-full py-3 px-4 rounded-lg font-medium bg-white/10 text-white hover:bg-white/20">Process PDF</button>
+                  ) : (
+                    <button onClick={() => window.location.href = `${API_URL}/auth/login`} className="w-full py-3 px-4 rounded-lg font-medium bg-white/10 text-white hover:bg-white/20">Get Started</button>
+                  )
+                ) : null
+              )}
             </div>
           ))}
         </div>

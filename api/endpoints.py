@@ -33,11 +33,39 @@ async def upload_pdf(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
+    # Dosya boyutu kontrolü (MB cinsinden)
+    file_content = await file.read()
+    file_size_mb = len(file_content) / (1024 * 1024)
+    print(f"File size: {file_size_mb:.2f}MB")
+    
+    # Kullanıcının planını kontrol et
+    from models import Subscription
+    result = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
+    subscription = result.scalars().first()
+    print(f"User subscription: {subscription.plan_type if subscription else 'None'}")
+    
+    # Plan tipine göre upload limitlerini belirle
+    if subscription and subscription.plan_type == 'pro':
+        max_upload_mb = 100
+    elif subscription and subscription.plan_type == 'standard':
+        max_upload_mb = 50
+    else:
+        max_upload_mb = 10
+    
+    print(f"Max upload MB for user: {max_upload_mb}MB")
+    
+    # Dosya boyutu kontrolü
+    if file_size_mb > max_upload_mb:
+        plan_name = subscription.plan_type.title() if subscription else "Free"
+        error_msg = f"File size ({file_size_mb:.1f}MB) exceeds {plan_name} plan limit of {max_upload_mb}MB"
+        print(f"Upload rejected: {error_msg}")
+        raise HTTPException(status_code=413, detail=error_msg)
+    
     # Dosyayı kaydet
     file_path = os.path.join(UPLOAD_DIR, file.filename)
     try:
         with open(file_path, 'wb') as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(file_content)
         print(f"File saved successfully at: {file_path}")
         print(f"File exists: {os.path.exists(file_path)}")
         print(f"File size: {os.path.getsize(file_path)} bytes")
@@ -78,19 +106,24 @@ async def upload_pdf(
     
     # Eğer aktif promosyon varsa, sınırsız limit göster (9999)
     if active_promo:
-        return {
+        response_data = {
             'pdf_id': pdf.id,
             'pages_total': pages_total,
             'pages_processed': 0,
             'limit_left': 9999,  # Sınırsız limit göster
             'has_active_promo': True
         }
+        print(f"Response with promo: {response_data}")
+        return response_data
     else:
         # Normal kota
-        return {
+        limit_left = user.monthly_page_limit - user.pages_processed_this_month
+        response_data = {
             'pdf_id': pdf.id,
             'pages_total': pages_total,
             'pages_processed': 0,
-            'limit_left': user.monthly_page_limit - user.pages_processed_this_month,
+            'limit_left': limit_left,
             'has_active_promo': False
         }
+        print(f"Response normal: {response_data}")
+        return response_data

@@ -120,13 +120,34 @@ class PDFTableProcessor:
         else:
             raise ValueError("Invalid output_format. Should be 'json', 'csv' or 'both'.")
 
-    def process_tables(self, output_format='json', pages_limit: int | None = None):
+    def process_tables(self, output_format='json', pages_limit: int | None = None, start_page: int | None = None, end_page: int | None = None):
         """
-        Iterate over tables page by page, honoring an optional pages_limit which limits how many pages to process.
+        Iterate over tables page by page, honoring an optional pages_limit, start_page, and end_page.
         Yields the same tuple shapes as before depending on output_format.
+        
+        Args:
+            output_format: 'json', 'csv', or 'both'
+            pages_limit: Maximum number of pages to process (legacy parameter)
+            start_page: Starting page number (1-indexed, inclusive)
+            end_page: Ending page number (1-indexed, inclusive)
         """
-        max_pages = self.total_pages if pages_limit is None else min(self.total_pages, pages_limit)
-        for page_idx in range(max_pages):
+        # Determine the page range to process
+        if start_page is not None and end_page is not None:
+            # Convert 1-indexed to 0-indexed and ensure valid range
+            start_idx = max(0, start_page - 1)
+            end_idx = min(self.total_pages - 1, end_page - 1)
+            if start_idx > end_idx:
+                return  # Invalid range, process nothing
+            page_range = range(start_idx, end_idx + 1)
+        elif pages_limit is not None:
+            # Legacy behavior: process first N pages
+            max_pages = min(self.total_pages, pages_limit)
+            page_range = range(max_pages)
+        else:
+            # Process all pages
+            page_range = range(self.total_pages)
+        
+        for page_idx in page_range:
             tables_on_page = self.per_page_tables[page_idx]
             for tbl_idx in range(len(tables_on_page)):
                 yield self.process_single_table(page_idx, tbl_idx, output_format)

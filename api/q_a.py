@@ -35,7 +35,6 @@ def ask_question(question: str, table_data: Union[Dict, List, str]) -> str:
         
         # Prompt hazırla
         system_prompt = """Sen bir veri analisti ve hesaplama uzmanısın. JSON verisi üzerinde analiz yapabilir, hesaplamalar gerçekleştirebilir ve soruları yanıtlayabilirsin. 
-
 Görevlerin:
 1. Verilen JSON verisini analiz et
 2. Kullanıcının sorusunu anla

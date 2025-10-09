@@ -16,7 +16,13 @@ logger = logging.getLogger(__name__)
 # Get database URL from environment or use SQLite as default
 # To use PostgreSQL, set DATABASE_URL environment variable to:
 # postgresql+asyncpg://username:password@localhost/dbname
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///./octro.db')
+# Default to a single sqlite DB file located next to this module (api/octro.db)
+# This ensures the app always uses the same DB file regardless of current working directory
+default_db_path = os.path.join(os.path.dirname(__file__), 'octro.db')
+# SQLAlchemy accepts forward slashes in URLs, so normalize Windows backslashes
+normalized_path = default_db_path.replace('\\', '/')
+default_db_url = "sqlite+aiosqlite:///" + normalized_path
+DATABASE_URL = os.getenv('DATABASE_URL', default_db_url)
 
 # Configure async engine for SQLite
 engine = create_async_engine(
@@ -47,7 +53,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     try:
         logger.debug("Creating new database session")
         yield session
-        await session.commit()
     except SQLAlchemyError as e:
         logger.error(f"Database error: {e}")
         await session.rollback()

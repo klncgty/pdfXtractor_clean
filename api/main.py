@@ -19,6 +19,13 @@ from sqlalchemy.future import select
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '..', 'uploads')
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'outputs')
 
+# In-memory cancellation flags for running processing jobs
+CANCEL_FLAGS = {}
+# In-memory progress tracking
+PROCESS_PROGRESS = {}
+PROCESS_TOTALS = {}
+PROCESS_STATUS = {}
+
 
 class QuestionRequest(BaseModel):
     question: Union[str, int, float]
@@ -39,15 +46,20 @@ async def lifespan(app: FastAPI):
         os.makedirs(UPLOAD_DIR, exist_ok=True)
         os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-        # Initialize database
-        await create_all_tables()
-        print("Database initialized successfully!")
+        # Optionally skip DB init and background tasks for quick dev/testing
+        skip_db_init = os.getenv('SKIP_DB_INIT', '0') == '1'
+        if skip_db_init:
+            print("SKIP_DB_INIT=1 detected; skipping database initialization and background tasks (dev mode)")
+        else:
+            # Initialize database
+            await create_all_tables()
+            print("Database initialized successfully!")
 
-        # Start background tasks
-        print("Starting background tasks...")
-        weekly_reset_task = asyncio.create_task(weekly_reset())
+            # Start background tasks
+            print("Starting background tasks...")
+            weekly_reset_task = asyncio.create_task(weekly_reset())
 
-        print("Application startup completed!")
+            print("Application startup completed!")
 
         yield  # Application is running
 
@@ -145,22 +157,11 @@ async def test_session_endpoint(request: Request):
     }
 
 
-@app.post("/upload")
-async def upload_pdf(file: UploadFile):
-    if not file.filename.endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-    try:
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        return {"filename": file.filename, "status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 import logging
+import re
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -169,12 +170,13 @@ logger = logging.getLogger(__name__)
 async def process_pdf(
     filename: str,
     output_format: str = "json",
-    pages_limit: int = 30,  # Default 30
+    start_page: int | None = None,
+    end_page: int | None = None,
     request: Request = None,  # Session için
     db: AsyncSession = Depends(get_db)
 ):
     logger.info(f"Processing request for file: {filename}")
-    logger.debug(f"Output format: {output_format}, Pages limit: {pages_limit}")
+    logger.debug(f"Output format: {output_format}, Start Page: {start_page}, End Page: {end_page}")
     
     # Validate filename
     if not filename:
@@ -195,15 +197,6 @@ async def process_pdf(
         logger.error(f"Invalid output format: {output_format}")
         raise HTTPException(status_code=400, detail='Invalid output format')
         
-    # Pages limit validation
-    try:
-        pages_limit = int(pages_limit)
-        if pages_limit < 1:
-            raise ValueError("Pages limit must be positive")
-    except ValueError as e:
-        logger.error(f"Invalid pages limit: {pages_limit}")
-        raise HTTPException(status_code=400, detail=str(e))
-    
     # Get current user from session
     user_id = request.session.get('user_id')
     if not user_id:
@@ -229,6 +222,10 @@ async def process_pdf(
         raise HTTPException(status_code=404, detail="File not found")
 
     try:
+        # Initialize cancellation flag for this user's processing job
+        processing_key = f"{user.id}:{filename}"
+        CANCEL_FLAGS[processing_key] = False
+
         # 1. File checks
         logger.info(f"Starting to process PDF: {file_path}")
         try:
@@ -269,11 +266,12 @@ async def process_pdf(
                 detail="Internal server error: PDF processing module not available"
             )
         
-        # 3. Process PDF
+    # 3. Process PDF
         try:
             # Aylık kota kontrolü - varsayılan 30 sayfa
             if user.monthly_page_limit != 30:
                 user.monthly_page_limit = 30
+                await db.commit()
                 logger.info(f"Setting default monthly page limit to 30 for user {user.id}")
             
             # Check for active promotion
@@ -294,31 +292,49 @@ async def process_pdf(
                     has_active_promo = True
                     break
             
+            processor = PDFTableProcessor(file_path)
+            total_pages_in_pdf = processor.total_pages
+
+            # Determine pages to process
+            pages_to_process = 0
+            if start_page is not None and end_page is not None:
+                if start_page > end_page:
+                    raise HTTPException(status_code=400, detail="Start page cannot be greater than end page.")
+                if start_page > total_pages_in_pdf:
+                    raise HTTPException(status_code=400, detail=f"Start page {start_page} is out of bounds for a PDF with {total_pages_in_pdf} pages.")
+                pages_to_process = (end_page - start_page) + 1
+            elif start_page is not None:
+                pages_to_process = 1
+            else: # All pages
+                pages_to_process = total_pages_in_pdf
+
             # Promo aktifse sınırsız, değilse normal kota kontrolü
             if has_active_promo:
                 logger.info(f"User {user.id} has active promotion - unlimited processing")
-                # Sınırsız işleme için PDF'in toplam sayfa sayısını almalıyız
-                processor = PDFTableProcessor(file_path)
-                pages_limit = processor.total_pages  # Bu satır önemli - tüm PDF'i işleme
-                logger.info(f"Unlimited promo active - processing all {pages_limit} pages")
             else:
                 # Normal kota kontrolü
                 pages_left = user.monthly_page_limit - user.pages_processed_this_month
                 if pages_left <= 0:
                     raise HTTPException(
                         status_code=403, 
-                        detail=f'Monthly quota exceeded. Monthly limit is 30 pages, you have processed {user.pages_processed_this_month} pages this month.'
+                        detail=f'Monthly quota exceeded. Monthly limit is {user.monthly_page_limit} pages, you have processed {user.pages_processed_this_month} pages this month.'
                     )
                 
-                # İstenen sayfa sayısını kota limitine göre ayarla
-                pages_limit = min(pages_limit, pages_left)
-                logger.info(f"User has {pages_left} pages left in quota, will process {pages_limit} pages")
-            
-            # PDF zaten yüklendiyse tekrar yükleme, aksi takdirde yükle
-            if not 'processor' in locals():
-                logger.debug("Initializing PDFTableProcessor...")
-                processor = PDFTableProcessor(file_path)
+                if pages_to_process > pages_left:
+                    logger.warning(f"User requested {pages_to_process} pages, but only has {pages_left} left in quota. Processing will be limited.")
+                    # Adjust end_page based on quota
+                    if start_page is not None:
+                        end_page = min(end_page or total_pages_in_pdf, start_page + pages_left - 1)
+                    else: # all pages mode
+                        start_page = 1
+                        end_page = pages_left
+                    pages_to_process = pages_left
+
             logger.info(f"PDF loaded successfully")
+            # Initialize progress tracking
+            PROCESS_TOTALS[processing_key] = processor.total_tables
+            PROCESS_PROGRESS[processing_key] = 0
+            PROCESS_STATUS[processing_key] = 'running'
                 
         except HTTPException:
             raise
@@ -334,15 +350,22 @@ async def process_pdf(
         # Check total pages and set warning if needed
         total_pages = processor.total_pages
         warning_message = None
-        if total_pages > pages_limit:
-            warning_message = f"PDF contains {total_pages} pages, but only the first {pages_limit} pages will be processed due to monthly quota limit."
-            
-        # Pass pages_limit through to processor
+        if not has_active_promo and pages_to_process < total_pages:
+             warning_message = f"PDF contains {total_pages} pages, but only {pages_to_process} pages will be processed due to monthly quota limit."
+
+        # Pass page range to processor
         try:
-            logger.debug(f"Starting to process tables with format: {output_format}, pages_limit: {pages_limit}")
+            logger.debug(f"Starting to process tables with format: {output_format}, start_page: {start_page}, end_page: {end_page}")
             processed_tables = 0
+            processed_pages_set = set()
             
-            for result in processor.process_tables(output_format, pages_limit=pages_limit):
+            canceled = False
+            for result in processor.process_tables(output_format, start_page=start_page, end_page=end_page):
+                # Check if user requested cancellation
+                if CANCEL_FLAGS.get(processing_key):
+                    logger.info(f"Processing cancelled by user {user.id} for file {filename}")
+                    canceled = True
+                    break
                 try:
                     if output_format == "both":
                         if len(result) != 3:
@@ -375,6 +398,24 @@ async def process_pdf(
                         })
                     
                     processed_tables += 1
+                    # Determine page index from generated filename and track unique pages
+                    try:
+                        # result contains file paths; first element is the data file (json or csv)
+                        data_file_path = None
+                        if output_format == "both":
+                            data_file_path = json_file
+                        else:
+                            data_file_path = data_file
+                        base = os.path.basename(data_file_path)
+                        m = re.search(r'page_(\d+)_', base)
+                        if m:
+                            page_idx = int(m.group(1))
+                            processed_pages_set.add(page_idx)
+                    except Exception:
+                        logger.debug("Could not parse page index from filename for quota accounting", exc_info=True)
+
+                    # Update progress tracking (still count tables for progress)
+                    PROCESS_PROGRESS[processing_key] = processed_tables
                     logger.debug(f"Successfully processed table {processed_tables}")
                     
                 except Exception as table_error:
@@ -384,34 +425,67 @@ async def process_pdf(
                         detail=f"Error processing table {processed_tables + 1}: {str(table_error)}"
                     )
 
+            if canceled:
+                # Do not consume quota when cancelled
+                logger.info(f"Processing cancelled before completion for {processing_key}; not consuming quota")
+                # Clean up flag and set status
+                CANCEL_FLAGS.pop(processing_key, None)
+                PROCESS_STATUS[processing_key] = 'cancelled'
+                # Return partial results to the client so frontend can show downloads for processed tables
+                response_data = {
+                    "tables": results,
+                    "total_tables": processor.total_tables,
+                    "total_pages": total_pages,
+                    "processed_pages": len(processed_pages_set),
+                    "processed_tables": processed_tables,
+                    "cancelled": True
+                }
+                if warning_message:
+                    response_data["warning"] = warning_message
+                return response_data
+
             if not results:
                 raise HTTPException(
                     status_code=400, 
                     detail="No tables were successfully processed in the PDF"
                 )
                 
-            logger.info(f"Successfully processed {processed_tables} tables")
+            logger.info(f"Successfully processed {processed_tables} tables on {len(processed_pages_set)} pages")
+            PROCESS_STATUS[processing_key] = 'finished'
             
         except Exception as process_error:
             logger.error(f"Error during table processing: {str(process_error)}", exc_info=True)
+            PROCESS_STATUS[processing_key] = 'failed'
             raise HTTPException(
                 status_code=500,
                 detail=f"Error processing tables: {str(process_error)}"
             )
 
-        # Kota harca - sadece promo yoksa
+        # Kota harca - sadece promo yoksa (commit only after successful processing)
         if not has_active_promo:
-            user.pages_processed_this_month += pages_limit
-            await db.commit()
-            logger.info(f"Used {pages_limit} pages from quota")
+            try:
+                processed_pages_count = len(processed_pages_set)
+                if processed_pages_count > 0:
+                    user.pages_processed_this_month += processed_pages_count
+                    await db.commit()
+                    logger.info(f"Used {processed_pages_count} pages from quota for user {user.id}. New total: {user.pages_processed_this_month}")
+                else:
+                    logger.info("No pages with tables were processed, no quota consumed.")
+            except Exception as e:
+                logger.error(f"Failed to commit quota usage for user {user.id}: {e}", exc_info=True)
+                await db.rollback() # Rollback on error
         else:
             logger.info(f"Unlimited promo active - no quota consumed")
+
+        # Clean up cancellation flag on normal completion
+        CANCEL_FLAGS.pop(processing_key, None)
 
         response_data = {
             "tables": results,
             "total_tables": processor.total_tables,
             "total_pages": total_pages,
-            "processed_pages": min(total_pages, pages_limit)
+            "processed_pages": len(processed_pages_set),
+            "processed_tables": processed_tables
         }
         if warning_message:
             response_data["warning"] = warning_message
@@ -427,6 +501,53 @@ async def download_file(filename: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path)
+
+
+@app.post("/cancel_processing")
+async def cancel_processing(request: Request):
+    """Endpoint for user to cancel an in-progress processing job.
+    Expects JSON body: { "filename": "name.pdf" }
+    """
+    try:
+        body = await request.json()
+        filename = body.get('filename')
+        user_id = request.session.get('user_id')
+        if not user_id:
+            raise HTTPException(status_code=401, detail='Not authenticated')
+        if not filename:
+            raise HTTPException(status_code=400, detail='filename is required')
+
+        processing_key = f"{user_id}:{filename}"
+        if processing_key in CANCEL_FLAGS:
+            CANCEL_FLAGS[processing_key] = True
+            return {"status": "cancel_requested"}
+        else:
+            return {"status": "no_active_job"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/process_status")
+async def process_status(filename: str, request: Request):
+    """Return current processing progress for the given filename for the session user."""
+    try:
+        user_id = request.session.get('user_id')
+        if not user_id:
+            raise HTTPException(status_code=401, detail='Not authenticated')
+
+        processing_key = f"{user_id}:{filename}"
+        progress = PROCESS_PROGRESS.get(processing_key, 0)
+        total = PROCESS_TOTALS.get(processing_key, 0)
+        status = PROCESS_STATUS.get(processing_key, 'idle')
+
+        return {
+            'filename': filename,
+            'progress': int(progress),
+            'total': int(total),
+            'status': status
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/ask")
