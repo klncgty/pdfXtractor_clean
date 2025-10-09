@@ -219,7 +219,17 @@ async def handle_checkout_completed(session, db: AsyncSession):
         subscription = result.scalars().first()
         
         if subscription:
-            # Update existing subscription
+            # If user had an existing Stripe subscription different from this new one,
+            # cancel the old subscription at period end to avoid duplicate active subs.
+            old_sub_id = subscription.stripe_subscription_id
+            if old_sub_id and old_sub_id != subscription_id:
+                try:
+                    stripe_service.cancel_subscription(old_sub_id)
+                    logger.info(f"Cancelled previous subscription {old_sub_id} for user {user_id} after new checkout {subscription_id}")
+                except Exception as e:
+                    logger.error(f"Failed to cancel previous subscription {old_sub_id} for user {user_id}: {e}")
+
+            # Update existing subscription record to point to the new subscription
             subscription.stripe_subscription_id = subscription_id
             subscription.stripe_customer_id = customer_id
             subscription.plan_type = plan_type

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Upload, Download, Send, FileUp, Coffee } from 'lucide-react';
 import axios from 'axios';
@@ -24,6 +24,7 @@ const ProcessPage = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
+  // progress counters removed from popup UI; polling still runs but values are unused here
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadInfo, setUploadInfo] = useState<{ pdf_id?: number; pages_total?: number; pages_processed?: number; limit_left?: number; has_active_promo?: boolean } | null>(null);
@@ -117,10 +118,14 @@ const ProcessPage = () => {
         ? uploadInfo.pages_total 
         : Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0);
       
+      // Start polling status while processing
+      startPollingStatus();
       const processResponse = await axios.get<ProcessResponse>(
         `${API_URL}/process/${file.name}?output_format=both&pages_limit=${pagesToProcess || 30}`,
         { withCredentials: true }
       );
+      // Stop polling after process call returns (success or failure handled below)
+      stopPollingStatus();
       const newTableData: { [key: number]: any } = {};
       for (let i = 0; i < processResponse.data.tables.length; i++) {
         const table = processResponse.data.tables[i];
@@ -146,17 +151,50 @@ const ProcessPage = () => {
     }
   };
 
+  // Polling process status
+  const statusIntervalRef = useRef<number | null>(null);
+  const startPollingStatus = () => {
+    stopPollingStatus();
+    statusIntervalRef.current = window.setInterval(async () => {
+      if (!file) return;
+      try {
+        const res = await axios.get(`${API_URL}/process_status`, { params: { filename: file.name }, withCredentials: true });
+  const { status } = res.data;
+  // progress values ignored for this popup variant
+        // if finished or cancelled or failed stop polling
+        if (status !== 'running') {
+          stopPollingStatus();
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 1000);
+  };
+
+  const stopPollingStatus = () => {
+    if (statusIntervalRef.current) {
+      clearInterval(statusIntervalRef.current);
+      statusIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    // cleanup on unmount
+    return () => stopPollingStatus();
+  }, []);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#262624' }}>
       {/* Loading overlay shown during upload or processing */}
-      {(uploading || processing) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-t-transparent border-white rounded-full animate-spin" />
-            <div className="text-white">{uploading ? 'Uploading...' : 'Processing PDF...'}</div>
-          </div>
+        {/* Small inline upload/processing indicators - no fullscreen overlay */}
+        <div className="fixed top-4 right-4 z-50">
+          {uploading && (
+            <div className="px-3 py-2 bg-black/80 text-white rounded-lg shadow">Uploading...</div>
+          )}
+          {!uploading && processing && (
+            <div className="px-3 py-2 bg-black/80 text-white rounded-lg shadow">Processing...</div>
+          )}
         </div>
-      )}
       <nav className="border-b border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#262624aa' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -364,33 +402,14 @@ const ProcessPage = () => {
                     </div>
                   )}
                   
-                  {/* Action buttons */}
-                  <div className="flex justify-end gap-3">
-                    <button 
-                      onClick={() => setShowUploadPopup(false)} 
-                      className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                  {/* Single OK button to dismiss popup */}
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setShowUploadPopup(false)}
+                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200"
                     >
-                      Cancel
+                      OK
                     </button>
-                    {uploadInfo.limit_left === 0 ? (
-                      <Link
-                        to="/pricing"
-                        className="px-6 py-2 bg-green-500 hover:bg-green-600
-                          text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
-                      >
-                        Upgrade Now
-                        <Upload className="w-4 h-4" />
-                      </Link>
-                    ) : (
-                      <button 
-                        onClick={handleStartProcessing}
-                        className="px-6 py-2 bg-blue-500 hover:bg-blue-600 
-                          text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
-                      >
-                        Process Now
-                        <Send className="w-4 h-4" />
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>

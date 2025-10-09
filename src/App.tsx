@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Upload, Download, Send, FileUp, Sparkles, ArrowRight, Coffee } from 'lucide-react';
 import axios from 'axios';
@@ -143,7 +143,7 @@ const VantaBirdsBackground = () => {
           minWidth: 200.00,
           scale: 1.00,
           scaleMobile: 1.00,
-          backgroundColor: 0x465199,
+          backgroundColor: 0x293f54,  
           color1: 0xff0000,
           color2: 0x3059a8,
           colorMode: 'variance',
@@ -631,6 +631,7 @@ const Landing = () => {
   const overviewRef = React.useRef<HTMLDivElement>(null);
   const [isAuthenticated, setIsAuthenticated] = React.useState<boolean | null>(null);
   const [showDarkOverlay, setShowDarkOverlay] = React.useState(false);
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     let mounted = true;
@@ -766,6 +767,148 @@ const Landing = () => {
           </div>
           <div style={{ textAlign: 'center', marginTop: 32 }}>
             <img src={llmImage} alt="llm format accuracy" style={{ width: '100%', maxWidth: 600, borderRadius: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.10)', opacity: showLLM ? 1 : 0, transition: 'opacity 0.7s' }} />
+          </div>
+
+          {/* Boost Your Business Section */}
+          <div className="mt-16 text-center">
+            <h3 className="text-2xl font-bold text-white mb-8">
+              Boost Your Business with Octro Today
+            </h3>
+            <p className="text-lg text-white/80 mb-12 max-w-2xl mx-auto">
+              Transform your workflows and accelerate productivity across industries with our advanced PDF table extraction technology.
+            </p>
+            
+            <div className="w-full">
+              <div className="flex gap-3 justify-center flex-wrap">
+                {[
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                      </svg>
+                    ),
+                    title: "Finance & Accounting",
+                    description: "Extract financial statements, balance sheets, and reports"
+                  },
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                      </svg>
+                    ),
+                    title: "Healthcare & Life Sciences", 
+                    description: "Process medical records, research data, and clinical reports"
+                  },
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16l3-1m-3 1l-3-1"/>
+                      </svg>
+                    ),
+                    title: "Legal & Government Documents",
+                    description: "Analyze contracts, regulations, and compliance documents"
+                  },
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                      </svg>
+                    ),
+                    title: "Business Intelligence & Market Research",
+                    description: "Transform market data and business analytics"
+                  },
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                      </svg>
+                    ),
+                    title: "Manufacturing & Engineering Reports",
+                    description: "Process technical specifications and quality reports"
+                  },
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 1v6m6-6v6"/>
+                      </svg>
+                    ),
+                    title: "Supply Chain & Logistics",
+                    description: "Streamline inventory and shipment documentation"
+                  },
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                      </svg>
+                    ),
+                    title: "Scientific & Academic Research",
+                    description: "Extract research data and academic publications"
+                  },
+                  // Duplicate items for seamless loop
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                      </svg>
+                    ),
+                    title: "Finance & Accounting",
+                    description: "Extract financial statements, balance sheets, and reports"
+                  },
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                      </svg>
+                    ),
+                    title: "Healthcare & Life Sciences", 
+                    description: "Process medical records, research data, and clinical reports"
+                  },
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16l3-1m-3 1l-3-1"/>
+                      </svg>
+                    ),
+                    title: "Legal & Government Documents",
+                    description: "Analyze contracts, regulations, and compliance documents"
+                  },
+                  {
+                    icon: (
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                      </svg>
+                    ),
+                    title: "Business Intelligence & Market Research",
+                    description: "Transform market data and business analytics"
+                  }
+                ].slice(0, 8).map((useCase, index) => (
+                  <div 
+                    key={index}
+                    className={`bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10 
+                      hover:bg-white/10 transition-all duration-300 cursor-pointer
+                      transform hover:scale-105 hover:shadow-2xl flex-shrink-0
+                      ${showLLM ? 'animate-fade-in-up' : 'opacity-0'}`}
+                    style={{ 
+                      animationDelay: `${0.2 + index * 0.1}s`,
+                      opacity: showLLM ? 1 : 0,
+                      minWidth: '180px',
+                      maxWidth: '200px',
+                      width: 'calc((100% - 7 * 12px) / 8)'
+                    }}
+                  >
+                    <div className="text-blue-400 mb-3 flex justify-center">
+                      {useCase.icon}
+                    </div>
+                    <h4 className="text-sm font-semibold text-white mb-2 text-center">
+                      {useCase.title}
+                    </h4>
+                    <p className="text-gray-300 text-xs leading-relaxed text-center">
+                      {useCase.description}
+                    </p>
+                  </div>
+              ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1255,11 +1398,47 @@ const ProcessPage = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
+  // progress counters removed from UI; polling still watches backend status
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadInfo, setUploadInfo] = useState<{ pdf_id?: number; pages_total?: number; pages_processed?: number; limit_left?: number; has_active_promo?: boolean } | null>(null);
   const [showUploadPopup, setShowUploadPopup] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+
+  // Polling helpers for process progress
+  const statusIntervalRef = useRef<number | null>(null);
+  const startPollingStatus = () => {
+    if (statusIntervalRef.current) {
+      clearInterval(statusIntervalRef.current);
+    }
+    statusIntervalRef.current = window.setInterval(async () => {
+      if (!file) return;
+      try {
+        const res = await axios.get(`${API_URL}/process_status`, { params: { filename: file.name }, withCredentials: true });
+  const { status } = res.data;
+  // Progress values are polled but not shown in this popup variant
+        if (status !== 'running') {
+          if (statusIntervalRef.current) {
+            clearInterval(statusIntervalRef.current);
+            statusIntervalRef.current = null;
+          }
+        }
+      } catch (e) {
+        // ignore polling errors
+      }
+    }, 1000);
+  };
+
+  const stopPollingStatus = () => {
+    if (statusIntervalRef.current) {
+      clearInterval(statusIntervalRef.current);
+      statusIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => stopPollingStatus();
+  }, []);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1350,10 +1529,15 @@ const ProcessPage = () => {
         ? uploadInfo.pages_total 
         : Math.min(uploadInfo.pages_total || 0, uploadInfo.limit_left || 0);
       
+      // Start polling status while processing
+      startPollingStatus();
       const processResponse = await axios.get<ProcessResponse>(
         `${API_URL}/process/${file.name}?output_format=both&pages_limit=${pagesToProcess || 30}`,
         { withCredentials: true }
-      );      const newTableData: { [key: number]: any } = {};
+      );
+      // Stop polling after process call returns (success or cancellation)
+      stopPollingStatus();
+      const newTableData: { [key: number]: any } = {};
       for (let i = 0; i < processResponse.data.tables.length; i++) {
         const table = processResponse.data.tables[i];
         if (table.json_file) {
@@ -1380,15 +1564,15 @@ const ProcessPage = () => {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#262624' }}>
-      {/* Loading overlay shown during upload or processing */}
-      {(uploading || processing) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-t-transparent border-white rounded-full animate-spin" />
-            <div className="text-white">{uploading ? 'Uploading...' : 'Processing PDF...'}</div>
-          </div>
-        </div>
-      )}
+      {/* Small inline upload/processing indicators - no fullscreen overlay */}
+      <div className="fixed top-4 right-4 z-50">
+        {uploading && (
+          <div className="px-3 py-2 bg-black/80 text-white rounded-lg shadow">Uploading...</div>
+        )}
+        {!uploading && processing && (
+          <div className="px-3 py-2 bg-black/80 text-white rounded-lg shadow">Processing...</div>
+        )}
+      </div>
       <nav className="border-b border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#262624aa' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -1423,10 +1607,22 @@ const ProcessPage = () => {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="max-w-3xl mx-auto processing-page-mobile">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl sm:text-5xl font-bold text-white mb-6 leading-tight overflow-hidden">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+          {/* Left side hint */}
+          <div className="lg:col-span-1 flex items-center justify-start">
+            <div className="text-white text-sm text-left">
+              <p className="flex items-center gap-2">
+                💡 Only pages with tables use your quota.<br />
+                Example: 20-page PDF with 5 tables = 5 pages used
+              </p>
+            </div>
+          </div>
+          
+          {/* Main content */}
+          <div className="lg:col-span-3 max-w-3xl processing-page-mobile">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight overflow-hidden">
               <span className="animate-slide-in-left-right inline-block [animation-delay:500ms]">
                 Transform Your PDF Tables
               </span>{' '}
@@ -1434,20 +1630,20 @@ const ProcessPage = () => {
                 with AI
               </span>
             </h1>
-            <p className="text-xl text-gray-400 mb-8">
+            <p className="text-lg text-gray-400 mb-4">
               Extract, analyze, and get insights from your PDF tables instantly
             </p>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-white/10 upload-area-mobile">
+          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-white/10 upload-area-mobile">
             <div className="flex flex-col items-center">
-              <div className="mb-8">
-                <div className="p-4 bg-blue-500/10 rounded-full">
-                  <FileUp className="w-8 h-8 text-blue-500" />
+              <div className="mb-4">
+                <div className="p-3 bg-blue-500/10 rounded-full">
+                  <FileUp className="w-6 h-6 text-blue-500" />
                 </div>
               </div>
               <div 
-                className={`w-full border-2 border-dashed rounded-xl p-8 mb-6 text-center
+                className={`w-full border-2 border-dashed rounded-xl p-6 mb-4 text-center
                   ${dragActive ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 hover:border-white/20'}
                   transition-all duration-200`}
                 onDragEnter={handleDrag}
@@ -1476,45 +1672,45 @@ const ProcessPage = () => {
               </div>
 
             {error && (
-              <div className="mb-6 py-3 px-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <div className="mb-4 py-2 px-4 bg-red-500/10 border border-red-500/20 rounded-lg">
                 <p className="text-red-400 text-sm">
                   <span className="font-medium">Error:</span> {error}
                 </p>
               </div>
             )}
 
-            <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 feature-grid-mobile">
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 feature-grid-mobile">
               {[
                 {
-                  icon: <Upload className="w-6 h-6 text-blue-500" />,
+                  icon: <Upload className="w-5 h-5 text-blue-500" />,
                   title: 'Easy Upload',
                   description: 'Drag & drop your PDF files or browse to upload'
                 },
                 {
-                  icon: <Sparkles className="w-6 h-6 text-purple-500" />,
+                  icon: <Sparkles className="w-5 h-5 text-purple-500" />,
                   title: 'AI-Powered',
                   description: 'Advanced AI processing for accurate table extraction'
                 },
                 {
-                  icon: <Download className="w-6 h-6 text-green-500" />,
+                  icon: <Download className="w-5 h-5 text-green-500" />,
                   title: 'Multiple Formats',
                   description: 'Download results in JSON or CSV format'
                 }
               ].map((feature, index) => (
-                <div key={index} className="bg-white/5 backdrop-blur-xl rounded-xl p-6 border border-white/10">
-                  <div className="p-3 bg-white/5 rounded-lg inline-block mb-4">
+                <div key={index} className="bg-white/5 backdrop-blur-xl rounded-lg p-4 border border-white/10">
+                  <div className="p-2 bg-white/5 rounded-lg inline-block mb-3">
                     {feature.icon}
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                  <p className="text-gray-400">{feature.description}</p>
+                  <h3 className="text-base font-semibold text-white mb-1">{feature.title}</h3>
+                  <p className="text-gray-400 text-sm">{feature.description}</p>
                 </div>
               ))}
             </div>
             
             {/* Upload status indicator */}
             {uploading && (
-              <div className="mt-4 text-blue-400 flex items-center gap-2">
-                <Upload className="w-5 h-5 animate-spin" />
+              <div className="mt-2 text-blue-400 flex items-center gap-2">
+                <Upload className="w-4 h-4 animate-spin" />
                 <span>Uploading PDF...</span>
               </div>
             )}
@@ -1523,23 +1719,22 @@ const ProcessPage = () => {
             {uploadInfo && !uploading && (
               <button
                 onClick={handleStartProcessing}
-                className="mt-6 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg 
+                className="mt-4 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg 
                   transition-colors duration-200 flex items-center gap-2"
                 disabled={processing}
               >
                 {processing ? (
-                  <Upload className="w-5 h-5 animate-spin" />
+                  <Upload className="w-4 h-4 animate-spin" />
                 ) : (
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-4 h-4" />
                 )}
                 {processing ? 'Processing PDF...' : 'Process PDF'}
               </button>
             )}
             {showUploadPopup && uploadInfo && (
-              <div className="fixed inset-0 z-60 flex items-center justify-center">
-                <div className="absolute inset-0 bg-black/70" onClick={() => setShowUploadPopup(false)} />
-                <div className="relative bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl p-8 w-full max-w-md z-70 shadow-2xl">
-                  <h3 className="text-xl font-bold text-white mb-4">Upload Complete</h3>
+              <div className="fixed inset-0 z-60 flex items-start justify-center pt-24 pointer-events-none">
+                <div className="relative bg-black/90 backdrop-blur-xl border border-white/10 rounded-lg p-4 w-full max-w-sm z-70 shadow-2xl pointer-events-auto">
+                  <h3 className="text-lg font-bold text-white mb-2">Upload Complete</h3>
                   
                   {/* Main info section */}
                   <div className="space-y-3 mb-6">
@@ -1596,33 +1791,13 @@ const ProcessPage = () => {
                     </div>
                   )}
                   
-                  {/* Action buttons */}
-                  <div className="flex justify-end gap-3">
-                    <button 
-                      onClick={() => setShowUploadPopup(false)} 
-                      className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setShowUploadPopup(false)}
+                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200"
                     >
-                      Cancel
+                      OK
                     </button>
-                    {uploadInfo.limit_left === 0 ? (
-                      <Link
-                        to="/pricing"
-                        className="px-6 py-2 bg-green-500 hover:bg-green-600
-                          text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
-                      >
-                        Upgrade Now
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    ) : (
-                      <button 
-                        onClick={handleStartProcessing}
-                        className="px-6 py-2 bg-blue-500 hover:bg-blue-600 
-                          text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
-                      >
-                        Process Now
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1630,6 +1805,7 @@ const ProcessPage = () => {
               </div>
             </div>
           </div>
+        </div>
       </main>
     </div>
   );
